@@ -10,6 +10,12 @@ Example: on Arch Linux
 Then, clone the repository, and type
 ```make```
 The output will be in the ```linux/``` folder
+# Features
+SDL Renderer
+
+SDL Sounds
+
+Support for DOOM (registered and shareware), The Ultimate DOOM, DOOM II, DOOM II: TNT: Evilution, DOOM II: The Plutonia Experiment, Freedoom: Phase 1, Freedoom: Phase 2, DOOM II: L'Enfer sur Terre (french DOOM II, limited support)
 # Bugs
 Game crashes when trying to quit multiple times
 Sample rate is predefined as 11,205 Hz so some sounds that have 11,205 Hz (like the super shotgun reload) play at half speed
