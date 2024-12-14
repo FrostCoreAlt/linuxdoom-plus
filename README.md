@@ -16,6 +16,7 @@ Sample rate is predefined as 11,205 Hz so some sounds that have 11,205 Hz (like 
 No music
 # Screenshots
 ![DOOM II Main Menu on LinuxDoom+](scrshot.png)
+![DOOM II Demo playing on LinuxDoom+](scrshot2.png)
 # TODO
 Fix all bugs previously mentioned.
 Windows port (that is up to you contributors, I have tried myself and failed)
