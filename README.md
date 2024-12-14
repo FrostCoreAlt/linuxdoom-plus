@@ -19,4 +19,5 @@ No music
 ![DOOM II Demo playing on LinuxDoom+](scrshot2.png)
 # TODO
 Fix all bugs previously mentioned.
+
 Windows port (that is up to you contributors, I have tried myself and failed)
