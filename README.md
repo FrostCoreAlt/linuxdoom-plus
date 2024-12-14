@@ -14,6 +14,8 @@ The output will be in the ```linux/``` folder
 Game crashes when trying to quit multiple times
 Sample rate is predefined as 11,205 Hz so some sounds that have 11,205 Hz (like the super shotgun reload) play at half speed
 No music
+# Screenshots
+![DOOM II Main Menu on LinuxDoom+](scrshot.png)
 # TODO
 Fix all bugs previously mentioned.
 Windows port (that is up to you contributors, I have tried myself and failed)
