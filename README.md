@@ -5,10 +5,15 @@ Fork of idSoftware/DOOM (linuxdoom-1.10), uses renderer and sound code by Sam La
 # Compiling
 ## NOTE: This code only compiles on Linux, a Windows build is not planned for now
 You need to have nsl and sdl12-compat, you can install these in whatever linux distro you have,
+
 Example: on Arch Linux
+
 ```sudo pacman -S sdl12-compat libnsl```
+
 Then, clone the repository, and type
+
 ```make```
+
 The output will be in the ```linux/``` folder
 # Features
 SDL Renderer
