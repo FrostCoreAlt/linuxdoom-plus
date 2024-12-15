@@ -31,7 +31,7 @@ rcsid[] = "$Id: m_menu.c,v 1.7 1997/02/03 22:45:10 b1 Exp $";
 #include <fcntl.h>
 #include <stdlib.h>
 #include <ctype.h>
-
+#include "i_endoom.h"
 
 #include "doomdef.h"
 #include "dstrings.h"
@@ -1089,7 +1089,9 @@ void M_QuitResponse(int ch)
 	    S_StartSound(NULL,quitsounds[(gametic>>2)&7]);
 	I_WaitVBL(105);
     }
-    I_Quit ();
+    byte *endoom;
+    endoom = W_CacheLumpName("ENDOOM",PU_CACHE);
+    I_Endoom (endoom);
 }
 
 
