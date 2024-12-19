@@ -644,7 +644,7 @@ I_InitSound()
   fprintf( stderr, " pre-cached all sound data\n");
   
   atexit(I_ShutdownSound);
-  if (!M_CheckParm("-nosound") {
+  if (!M_CheckParm("-nosound")) {
       I_InitMusic();
       return;
   }
