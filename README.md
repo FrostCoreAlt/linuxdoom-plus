@@ -4,11 +4,11 @@ LinuxDoom+ is a source port based on LinuxDoom v1.10, it is aimed at vanilla com
 Fork of idSoftware/DOOM (linuxdoom-1.10), uses renderer and sound code by Sam Lantinga (modified and copied from SDLDoom!)
 # Compiling
 ## NOTE: This code only compiles on Linux, a Windows build is not planned for now
-You need to have nsl and sdl12-compat, you can install these in whatever linux distro you have,
+You need to have nsl and sdl12-compat (and sdl_mixer for mus), you can install these in whatever linux distro you have,
 
 Example: on Arch Linux
 
-```sudo pacman -S sdl12-compat libnsl```
+```sudo pacman -S sdl12-compat libnsl sdl_mixer```
 
 Then, clone the repository, and type
 
