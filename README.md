@@ -29,6 +29,8 @@ Rename your IWAD from doom.wad to doomu.wad, then episode 4 will be accessible
 Game crashes when trying to quit multiple times
 
 ENDOOM is broken
+
+STILL 11025Hz, even with the new sound code
 # Screenshots
 ![DOOM II Main Menu on LinuxDoom+](scrshot.png)
 ![DOOM II Demo playing on LinuxDoom+](scrshot2.png)
