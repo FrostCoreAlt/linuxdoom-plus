@@ -39,7 +39,7 @@ void I_Endoom(byte *endoom_data)
 
     TXT_Init();
 
-    TXT_SetWindowTitle("Thanks for trying out LinuxDoom+ v1.12!");
+    TXT_SetWindowTitle("Thanks for trying out LinuxDoom+ v1.13!");
     // SDL2-TODO I_InitWindowTitle();
     // SDL2-TODO I_InitWindowIcon();
 
