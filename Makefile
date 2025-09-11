@@ -3,9 +3,9 @@
 ###############################################################
 
 CC      := gcc
-CFLAGS  := -g -Wall -DNORMALUNIX -DLINUX `sdl2-config --cflags`
+CFLAGS  := -g -Wall
 LDFLAGS :=
-LIBS    := -lXext -lSDL2 -lSDL2_mixer -lnsl -lm
+LIBS    := -lSDL2_net -lSDL2 -lSDL2_mixer -lm
 
 O = linux
 

@@ -1,20 +1,58 @@
 // Emacs style mode select   -*- C++ -*- 
 //-----------------------------------------------------------------------------
 //
-// $Id:$
+// $Id: w_wad.c 343 2006-01-24 01:47:30Z fraggle $
 //
-// Copyright (C) 1993-1996 by id Software, Inc.
+// Copyright(C) 1993-1996 Id Software, Inc.
+// Copyright(C) 2005 Simon Howard
 //
-// This source is available for distribution and/or modification
-// only under the terms of the DOOM Source Code License as
-// published by id Software. All rights reserved.
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
 //
-// The source is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// FITNESS FOR A PARTICULAR PURPOSE. See the DOOM Source Code License
-// for more details.
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// $Log:$
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+// 02111-1307, USA.
+//
+// $Log$
+// Revision 1.9.2.1  2006/01/24 01:47:30  fraggle
+// More endianness fixes
+//
+// Revision 1.9  2006/01/10 22:14:13  fraggle
+// Shut up compiler warnings
+//
+// Revision 1.8  2005/10/08 18:22:46  fraggle
+// Store the cache as part of the lumpinfo_t struct.  Add W_AddFile prototype
+// to header.
+//
+// Revision 1.7  2005/08/30 22:15:11  fraggle
+// More Windows fixes
+//
+// Revision 1.6  2005/08/30 22:11:10  fraggle
+// Windows fixes
+//
+// Revision 1.5  2005/08/04 18:42:15  fraggle
+// Silence compiler warnings
+//
+// Revision 1.4  2005/08/04 01:13:46  fraggle
+// Loading disk
+//
+// Revision 1.3  2005/07/23 18:50:34  fraggle
+// Use standard C file functions for WAD code
+//
+// Revision 1.2  2005/07/23 16:44:57  fraggle
+// Update copyright to GNU GPL
+//
+// Revision 1.1.1.1  2005/07/23 16:20:39  fraggle
+// Initial import
+//
 //
 // DESCRIPTION:
 //	Handles WAD file header, directory, lump I/O.
@@ -23,29 +61,20 @@
 
 
 static const char
-rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
+rcsid[] = "$Id: w_wad.c 343 2006-01-24 01:47:30Z fraggle $";
 
 
-#ifdef NORMALUNIX
 #include <ctype.h>
-#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <malloc.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <alloca.h>
-#define O_BINARY		0
-#endif
 
 #include "doomtype.h"
 #include "m_swap.h"
 #include "i_system.h"
+#include "i_video.h"
 #include "z_zone.h"
 
-#ifdef __GNUG__
-#pragma implementation "w_wad.h"
-#endif
 #include "w_wad.h"
 
 
@@ -61,24 +90,30 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 lumpinfo_t*		lumpinfo;		
 int			numlumps;
 
-void**			lumpcache;
-
+void **lumpcache = NULL;  
 
 #define strcmpi	strcasecmp
 
-void strupr (char* s)
+void string_to_upper (char* s)
 {
     while (*s) { *s = toupper(*s); s++; }
 }
 
-int filelength (int handle) 
+int filelength (FILE *handle)
 { 
-    struct stat	fileinfo;
+    long savedpos;
+    long length;
+    // save the current position in the file
+    savedpos = ftell(handle);
     
-    if (fstat (handle,&fileinfo) == -1)
-	I_Error ("Error fstating");
+    // jump to the end and find the length
+    fseek(handle, 0, SEEK_END);
+    length = ftell(handle);
 
-    return fileinfo.st_size;
+    // go back to the old location
+    fseek(handle, savedpos, SEEK_SET);
+
+    return length;
 }
 
 
@@ -143,12 +178,12 @@ void W_AddFile (char *filename)
     wadinfo_t		header;
     lumpinfo_t*		lump_p;
     unsigned		i;
-    int			handle;
+    FILE               *handle;
     int			length;
     int			startlump;
     filelump_t*		fileinfo;
-    filelump_t		singleinfo;
-    int			storehandle;
+    filelump_t*         filerover;
+    FILE               *storehandle;
     
     // open the file and add to directory
 
@@ -160,7 +195,7 @@ void W_AddFile (char *filename)
 	reloadlump = numlumps;
     }
 		
-    if ( (handle = open (filename,O_RDONLY | O_BINARY)) == -1)
+    if ( (handle = fopen(filename,"rb")) == NULL)
     {
 	printf (" couldn't open %s\n",filename);
 	return;
@@ -172,16 +207,16 @@ void W_AddFile (char *filename)
     if (strcmpi (filename+strlen(filename)-3 , "wad" ) )
     {
 	// single lump file
-	fileinfo = &singleinfo;
-	singleinfo.filepos = 0;
-	singleinfo.size = LONG(filelength(handle));
-	ExtractFileBase (filename, singleinfo.name);
+	fileinfo = Z_Malloc(sizeof(filelump_t), PU_STATIC, 0);
+	fileinfo->filepos = 0;
+	fileinfo->size = filelength(handle);
+	ExtractFileBase (filename, fileinfo->name);
 	numlumps++;
     }
     else 
     {
 	// WAD file
-	read (handle, &header, sizeof(header));
+	fread (&header, sizeof(header), 1, handle);
 	if (strncmp(header.identification,"IWAD",4))
 	{
 	    // Homebrew levels?
@@ -196,33 +231,35 @@ void W_AddFile (char *filename)
 	header.numlumps = LONG(header.numlumps);
 	header.infotableofs = LONG(header.infotableofs);
 	length = header.numlumps*sizeof(filelump_t);
-	fileinfo = alloca (length);
-	lseek (handle, header.infotableofs, SEEK_SET);
-	read (handle, fileinfo, length);
+	fileinfo = Z_Malloc(length, PU_STATIC, 0);
+	fseek(handle, header.infotableofs, SEEK_SET);
+	fread(fileinfo, length, 1, handle);
 	numlumps += header.numlumps;
     }
 
     
     // Fill in lumpinfo
-    lumpinfo = realloc (lumpinfo, numlumps*sizeof(lumpinfo_t));
-
+    lumpinfo = realloc (lumpinfo, numlumps*sizeof(lumpinfo_t)); 
     if (!lumpinfo)
 	I_Error ("Couldn't realloc lumpinfo");
 
     lump_p = &lumpinfo[startlump];
 	
-    storehandle = reloadname ? -1 : handle;
+    storehandle = reloadname ? NULL : handle;
 	
-    for (i=startlump ; i<numlumps ; i++,lump_p++, fileinfo++)
+    for (i=startlump,filerover=fileinfo ; i<numlumps ; i++,lump_p++, filerover++)
     {
 	lump_p->handle = storehandle;
-	lump_p->position = LONG(fileinfo->filepos);
-	lump_p->size = LONG(fileinfo->size);
-	strncpy (lump_p->name, fileinfo->name, 8);
+	lump_p->position = LONG(filerover->filepos);
+	lump_p->size = LONG(filerover->size);
+        lump_p->cache = NULL;
+	strncpy (lump_p->name, filerover->name, 8);
     }
 	
     if (reloadname)
-	close (handle);
+	fclose (handle);
+
+    Z_Free(fileinfo);
 }
 
 
@@ -239,23 +276,23 @@ void W_Reload (void)
     int			lumpcount;
     lumpinfo_t*		lump_p;
     unsigned		i;
-    int			handle;
+    FILE               *handle;
     int			length;
     filelump_t*		fileinfo;
 	
     if (!reloadname)
 	return;
 		
-    if ( (handle = open (reloadname,O_RDONLY | O_BINARY)) == -1)
+    if ( (handle = fopen(reloadname,"rb")) == NULL)
 	I_Error ("W_Reload: couldn't open %s",reloadname);
 
-    read (handle, &header, sizeof(header));
+    fread(&header, sizeof(header), 1, handle);
     lumpcount = LONG(header.numlumps);
     header.infotableofs = LONG(header.infotableofs);
     length = lumpcount*sizeof(filelump_t);
-    fileinfo = alloca (length);
-    lseek (handle, header.infotableofs, SEEK_SET);
-    read (handle, fileinfo, length);
+    fileinfo = Z_Malloc(length, PU_STATIC, 0);
+    fseek(handle, header.infotableofs, SEEK_SET);
+    fread(fileinfo, length, 1, handle);
     
     // Fill in lumpinfo
     lump_p = &lumpinfo[reloadlump];
@@ -264,16 +301,17 @@ void W_Reload (void)
 	 i<reloadlump+lumpcount ;
 	 i++,lump_p++, fileinfo++)
     {
-	if (lumpcache[i])
-	    Z_Free (lumpcache[i]);
+	if (lumpinfo[i].cache)
+	    Z_Free (lumpinfo[i].cache);
 
 	lump_p->position = LONG(fileinfo->filepos);
 	lump_p->size = LONG(fileinfo->size);
     }
 	
-    close (handle);
-}
+    fclose(handle);
 
+    Z_Free(fileinfo);
+}
 
 
 //
@@ -367,7 +405,7 @@ int W_CheckNumForName (char* name)
     name8.s[8] = 0;
 
     // case insensitive
-    strupr (name8.s);		
+    string_to_upper (name8.s);		
 
     v1 = name8.x[0];
     v2 = name8.x[1];
@@ -435,35 +473,35 @@ W_ReadLump
 {
     int		c;
     lumpinfo_t*	l;
-    int		handle;
+    FILE       *handle;
 	
     if (lump >= numlumps)
 	I_Error ("W_ReadLump: %i >= numlumps",lump);
 
     l = lumpinfo+lump;
 	
-    // ??? I_BeginRead ();
+    I_BeginRead ();
 	
-    if (l->handle == -1)
+    if (l->handle == NULL)
     {
 	// reloadable file, so use open / read / close
-	if ( (handle = open (reloadname,O_RDONLY | O_BINARY)) == -1)
+	if ( (handle = fopen(reloadname,"rb")) == NULL)
 	    I_Error ("W_ReadLump: couldn't open %s",reloadname);
     }
     else
 	handle = l->handle;
 		
-    lseek (handle, l->position, SEEK_SET);
-    c = read (handle, dest, l->size);
+    fseek(handle, l->position, SEEK_SET);
+    c = fread (dest, 1, l->size, handle);
 
     if (c < l->size)
 	I_Error ("W_ReadLump: only read %i of %i on lump %i",
 		 c,l->size,lump);	
 
-    if (l->handle == -1)
-	close (handle);
+    if (l->handle == NULL)
+	fclose (handle);
 		
-    // ??? I_EndRead ();
+    I_EndRead ();
 }
 
 
@@ -532,7 +570,7 @@ void W_Profile (void)
 	
     for (i=0 ; i<numlumps ; i++)
     {	
-	ptr = lumpcache[i];
+	ptr = lumpinfo[i].cache;
 	if (!ptr)
 	{
 	    ch = ' ';
@@ -573,5 +611,4 @@ void W_Profile (void)
     }
     fclose (f);
 }
-
 
