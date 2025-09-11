@@ -456,7 +456,7 @@ void I_InitGraphics(void)
     }
     SDL_ShowCursor(0);
     SDL_WM_SetIcon(SDL_LoadBMP("icon.bmp"), NULL);
-    SDL_WM_SetCaption("LinuxDoom+ V1.12", "ldoom");
+    SDL_WM_SetCaption("LinuxDoom+ V1.13", "ldoom");
 
     /* Set up the screen displays */
     w = SCREENWIDTH * multiply;
