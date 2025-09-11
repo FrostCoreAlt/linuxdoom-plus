@@ -517,7 +517,11 @@ void I_InitGraphics(void)
             SDL_FreeSurface(icon);
         }
     }
-    SDL_SetWindowTitle(window, "LinuxDoom+ V1.13");
+    char title[64];
+    snprintf(title, sizeof(title),
+            LinuxDoom+ v%i.%i",
+            EVERSION / 100, EVERSION % 100);
+    SDL_SetWindowTitle(window, title);
 
     /* Set up the screen displays */
     w = SCREENWIDTH * multiply;
