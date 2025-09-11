@@ -39,6 +39,10 @@ long	SwapLONG(long);
 #else
 #define SHORT(x)	(x)
 #define LONG(x)         (x)
+#define doom_wtohs(x)   ((short int) (x))
+#define doom_htows(x)   ((short int) (x))
+#define doom_wtohl(x)   ((long int) (x))
+#define doom_htowl(x)   ((long int) (x))
 #endif
 
 

@@ -79,7 +79,7 @@ typedef struct
     void*	data;
 
     // music handle once registered
-    int handle;
+    void *handle;
     
 } musicinfo_t;
 

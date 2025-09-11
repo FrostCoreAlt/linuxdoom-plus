@@ -1,4 +1,4 @@
-################################################################
+###############################################################
 #
 # $Id:$
 #
@@ -8,7 +8,7 @@ CC=  gcc  # gcc or g++
 
 CFLAGS=-g -Wall -DNORMALUNIX -DLINUX# -DUSEASM 
 LDFLAGS=-L/usr/X11R6/lib
-LIBS=-lXext -lSDL -lnsl -L./TEXTSCREEN -ltextscreen -lm
+LIBS=-lXext -lSDL -lSDL_mixer -lnsl -L./TEXTSCREEN -ltextscreen -lm
 
 # subdirectory for objects
 O=linux
@@ -76,8 +76,8 @@ OBJS=				\
 		$(O)/s_sound.o		\
 		$(O)/z_zone.o			\
 		$(O)/info.o				\
-		$(O)/sounds.o
-
+		$(O)/sounds.o		\
+		$(O)/mmus2mid.o		
 all:	 $(O)/linuxdoom-plus
 
 clean:
