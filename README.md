@@ -8,7 +8,7 @@ You need to have nsl and sdl12-compat, you can install these in whatever linux d
 
 Example: on Arch Linux
 
-```sudo pacman -S sdl12-compat libnsl```
+```sudo pacman -S sdl12-compat libnsl sdl_mixer```
 
 Then, clone the repository, and type
 
@@ -21,13 +21,10 @@ SDL Renderer
 SDL Sounds
 
 Support for DOOM (registered and shareware), The Ultimate DOOM, DOOM II, DOOM II: TNT: Evilution, DOOM II: The Plutonia Experiment, Freedoom: Phase 1, Freedoom: Phase 2, DOOM II: L'Enfer sur Terre (french DOOM II, limited support)
-# NOTE FOR ULTIMATE DOOM
-Rename your IWAD from doom.wad to doomu.wad, then episode 4 will be accessible
 # Bugs
 Game crashes when trying to quit multiple times
 
 Sample rate is predefined as 11,205 Hz so some sounds that have 11,205 Hz (like the super shotgun reload) play at half speed
-No music
 # Screenshots
 ![DOOM II Main Menu on LinuxDoom+](scrshot.png)
 ![DOOM II Demo playing on LinuxDoom+](scrshot2.png)
