@@ -453,20 +453,6 @@ void G_DoLoadLevel (void)
     //  setting one.
     skyflatnum = R_FlatNumForName ( SKYFLATNAME );
 
-    // DOOM determines the sky texture to be used
-    // depending on the current episode, and the game version.
-    if ( (gamemode == commercial)
-	 || ( gamemode == pack_tnt )
-	 || ( gamemode == pack_plut ) )
-    {
-	skytexture = R_TextureNumForName ("SKY3");
-	if (gamemap < 12)
-	    skytexture = R_TextureNumForName ("SKY1");
-	else
-	    if (gamemap < 21)
-		skytexture = R_TextureNumForName ("SKY2");
-    }
-
     levelstarttic = gametic;        // for time calculation
     
     if (wipegamestate == GS_LEVEL) 
@@ -1359,7 +1345,16 @@ void G_DoNewGame (void)
 
 // The sky texture to be used instead of the F_SKY1 dummy.
 extern  int	skytexture; 
-
+// hack
+static void doom2sky(void)
+{
+    if (gamemap < 12)
+        skytexture = R_TextureNumForName("SKY1");
+    else if (gamemap < 21)
+        skytexture = R_TextureNumForName("SKY2");
+    else
+        skytexture = R_TextureNumForName("SKY3");
+}
 
 void
 G_InitNew
@@ -1451,15 +1446,20 @@ G_InitNew
  
     viewactive = true;
     
-    // set the sky map for the episode
-    if ( gamemode == commercial)
+    // DOOM determines the sky texture to be used
+    // depending on the current episode, and the game version.
+    // this code was broken, so i have to use... whatever this is, I'M SORRY!!
+    if ( (gamemode == commercial) )
     {
-	skytexture = R_TextureNumForName ("SKY3");
-	if (gamemap < 12)
-	    skytexture = R_TextureNumForName ("SKY1");
-	else
-	    if (gamemap < 21)
-		skytexture = R_TextureNumForName ("SKY2");
+        doom2sky();
+    }
+    if ( (gamemode == pack_plut) )
+    {
+        doom2sky();
+    }
+    if ( (gamemode == pack_tnt) )
+    {
+        doom2sky();
     }
     else
 	switch (episode) 
@@ -1477,10 +1477,9 @@ G_InitNew
 	    skytexture = R_TextureNumForName ("SKY4");
 	    break;
 	} 
- 
     G_DoLoadLevel (); 
 } 
- 
+
 
 //
 // DEMO RECORDING 

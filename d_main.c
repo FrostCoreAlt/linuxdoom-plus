@@ -105,7 +105,7 @@ boolean		devparm;	// started game with -devparm
 boolean         nomonsters;	// checkparm of -nomonsters
 boolean         respawnparm;	// checkparm of -respawn
 boolean         fastparm;	// checkparm of -fast
-
+boolean         isdoom;
 boolean         drone;
 
 boolean		singletics = false; // debug flag to cancel adaptiveness
@@ -564,7 +564,6 @@ void IdentifyVersion (void)
 
     char*	doom1wad;
     char*	doomwad;
-    char*	doomuwad;
     char*	doom2wad;
     char*	freedoom1wad;
     char*	freedoom2wad;
@@ -581,12 +580,8 @@ void IdentifyVersion (void)
     // Commercial.
     doom2wad = malloc(strlen(doomwaddir)+1+9+1);
     sprintf(doom2wad, "%s/doom2.wad", doomwaddir);
-
-    // Retail.
-    doomuwad = malloc(strlen(doomwaddir)+1+8+1);
-    sprintf(doomuwad, "%s/doomu.wad", doomwaddir);
     
-    // Registered.
+    // DOOM
     doomwad = malloc(strlen(doomwaddir)+1+8+1);
     sprintf(doomwad, "%s/doom.wad", doomwaddir);
     
@@ -701,19 +696,14 @@ void IdentifyVersion (void)
       return;
     }
 
-    if ( !access (doomuwad,R_OK) )
-    {
-      gamemode = retail;
-      D_AddFile (doomuwad);
-      return;
-    }
-
     if ( !access (doomwad,R_OK) )
     {
-      gamemode = registered;
       D_AddFile (doomwad);
+	  isdoom = true;
       return;
-    }
+    } else {
+	  isdoom = false;
+	}
 
     if ( !access (doom1wad,R_OK) )
     {
@@ -1027,7 +1017,26 @@ void D_DoomMain (void)
     printf ("W_Init: Init WADfiles.\n");
     W_InitMultipleFiles (wadfiles);
 printf("added\n");
-    
+	if ( isdoom )
+    {
+		// Okay, this is a original DOOM 1 wad. but we need to figure out the version
+		if (W_CheckNumForName("E4M1") > 0)
+		{
+			// Ultimate DOOM
+
+			gamemode = retail;
+		} 
+		else if (W_CheckNumForName("E3M1") > 0)
+		{
+			// DOOM Registered
+			gamemode = registered;
+		}
+		else
+		{
+			// If, for some reason, you named your shareware DOOM wad this way
+			gamemode = shareware;
+		}
+	}
 
     // Check for -file in shareware
     if (modifiedgame)
