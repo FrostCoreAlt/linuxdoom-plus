@@ -484,11 +484,9 @@ void I_InitGraphics(void)
     }
 
     /* Create a window and get its surface */
-    char title[64];
-    snprintf(title, sizeof(title),
-            "LinuxDoom+ v%i.%i",
-            EVERSION / 100, EVERSION % 100);
-    window = SDL_CreateWindow(title,
+    char wintitle[64];
+    snprintf(title, sizeof(wintitle),"LinuxDoom+ v%i.%i",EVERSION / 100, EVERSION % 100);
+    window = SDL_CreateWindow(wintitle,
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                               video_w, video_h, video_flags);
     if (!window) {
