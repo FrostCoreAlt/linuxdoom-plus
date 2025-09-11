@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,11 +11,6 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
-//
 
 #include <stdlib.h>
 #include <string.h>
@@ -28,35 +21,37 @@
 #include "txt_gui.h"
 #include "txt_io.h"
 #include "txt_main.h"
+#include "txt_utf8.h"
 #include "txt_window.h"
 
 static void TXT_RadioButtonSizeCalc(TXT_UNCAST_ARG(radiobutton))
 {
     TXT_CAST_ARG(txt_radiobutton_t, radiobutton);
 
-    // Minimum width is the string length + two spaces for padding
+    // Minimum width is the string length + right-side spaces for padding
 
-    radiobutton->widget.w = strlen(radiobutton->label) + 6;
+    radiobutton->widget.w = TXT_UTF8_Strlen(radiobutton->label) + 5;
     radiobutton->widget.h = 1;
 }
 
-static void TXT_RadioButtonDrawer(TXT_UNCAST_ARG(radiobutton), int selected)
+static void TXT_RadioButtonDrawer(TXT_UNCAST_ARG(radiobutton))
 {
     TXT_CAST_ARG(txt_radiobutton_t, radiobutton);
+    txt_saved_colors_t colors;
     int i;
     int w;
 
     w = radiobutton->widget.w;
 
-    TXT_BGColor(TXT_COLOR_BLUE, 0);
+    TXT_SaveColors(&colors);
     TXT_FGColor(TXT_COLOR_BRIGHT_CYAN);
-    TXT_DrawString(" (");
+    TXT_DrawString("(");
 
     TXT_FGColor(TXT_COLOR_BRIGHT_WHITE);
 
     if (*radiobutton->variable == radiobutton->value)
     {
-        TXT_DrawString("\x07");
+        TXT_DrawCodePageString("\x07");
     }
     else
     {
@@ -67,16 +62,12 @@ static void TXT_RadioButtonDrawer(TXT_UNCAST_ARG(radiobutton), int selected)
 
     TXT_DrawString(") ");
 
-    if (selected)
-    {
-        TXT_BGColor(TXT_COLOR_GREY, 0);
-    }
-
-    TXT_FGColor(TXT_COLOR_BRIGHT_WHITE);
+    TXT_RestoreColors(&colors);
+    TXT_SetWidgetBG(radiobutton);
 
     TXT_DrawString(radiobutton->label);
-    
-    for (i=strlen(radiobutton->label); i < w-6; ++i)
+
+    for (i=TXT_UTF8_Strlen(radiobutton->label); i < w-5; ++i)
     {
         TXT_DrawString(" ");
     }
@@ -121,6 +112,7 @@ static void TXT_RadioButtonMousePress(TXT_UNCAST_ARG(radiobutton),
 
 txt_widget_class_t txt_radiobutton_class =
 {
+    TXT_AlwaysSelectable,
     TXT_RadioButtonSizeCalc,
     TXT_RadioButtonDrawer,
     TXT_RadioButtonKeyPress,
@@ -129,7 +121,7 @@ txt_widget_class_t txt_radiobutton_class =
     NULL,
 };
 
-txt_radiobutton_t *TXT_NewRadioButton(char *label, int *variable, int value)
+txt_radiobutton_t *TXT_NewRadioButton(const char *label, int *variable, int value)
 {
     txt_radiobutton_t *radiobutton;
 
@@ -143,7 +135,7 @@ txt_radiobutton_t *TXT_NewRadioButton(char *label, int *variable, int value)
     return radiobutton;
 }
 
-void TXT_SetRadioButtonLabel(txt_radiobutton_t *radiobutton, char *value)
+void TXT_SetRadioButtonLabel(txt_radiobutton_t *radiobutton, const char *value)
 {
     free(radiobutton->label);
     radiobutton->label = strdup(value);

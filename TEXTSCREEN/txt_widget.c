@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,17 +11,14 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
-//
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "txt_io.h"
 #include "txt_widget.h"
+#include "txt_gui.h"
+#include "txt_desktop.h"
 
 typedef struct
 {
@@ -82,10 +77,14 @@ void TXT_InitWidget(TXT_UNCAST_ARG(widget), txt_widget_class_t *widget_class)
 
     widget->widget_class = widget_class;
     widget->callback_table = TXT_NewCallbackTable();
+    widget->parent = NULL;
 
-    // Default values: visible and selectable
+    // Not focused until we hear otherwise.
 
-    widget->selectable = 1;
+    widget->focused = 0;
+
+    // Visible by default.
+
     widget->visible = 1;
 
     // Align left by default
@@ -153,17 +152,25 @@ void TXT_CalcWidgetSize(TXT_UNCAST_ARG(widget))
     widget->widget_class->size_calc(widget);
 }
 
-void TXT_DrawWidget(TXT_UNCAST_ARG(widget), int selected)
+void TXT_DrawWidget(TXT_UNCAST_ARG(widget))
 {
     TXT_CAST_ARG(txt_widget_t, widget);
+    txt_saved_colors_t colors;
+
+    // The drawing function might change the fg/bg colors,
+    // so make sure we restore them after it's done.
+
+    TXT_SaveColors(&colors);
 
     // For convenience...
 
     TXT_GotoXY(widget->x, widget->y);
 
     // Call drawer method
- 
-    widget->widget_class->drawer(widget, selected);
+
+    widget->widget_class->drawer(widget);
+
+    TXT_RestoreColors(&colors);
 }
 
 void TXT_DestroyWidget(TXT_UNCAST_ARG(widget))
@@ -185,6 +192,26 @@ int TXT_WidgetKeyPress(TXT_UNCAST_ARG(widget), int key)
     }
 
     return 0;
+}
+
+void TXT_SetWidgetFocus(TXT_UNCAST_ARG(widget), int focused)
+{
+    TXT_CAST_ARG(txt_widget_t, widget);
+
+    if (widget == NULL)
+    {
+        return;
+    }
+
+    if (widget->focused != focused)
+    {
+        widget->focused = focused;
+
+        if (widget->widget_class->focus_change != NULL)
+        {
+            widget->widget_class->focus_change(widget, focused);
+        }
+    }
 }
 
 void TXT_SetWidgetAlign(TXT_UNCAST_ARG(widget), txt_horiz_align_t horiz_align)
@@ -211,6 +238,89 @@ void TXT_LayoutWidget(TXT_UNCAST_ARG(widget))
     if (widget->widget_class->layout != NULL)
     {
         widget->widget_class->layout(widget);
+    }
+}
+
+int TXT_AlwaysSelectable(TXT_UNCAST_ARG(widget))
+{
+    return 1;
+}
+
+int TXT_NeverSelectable(TXT_UNCAST_ARG(widget))
+{
+    return 0;
+}
+
+int TXT_SelectableWidget(TXT_UNCAST_ARG(widget))
+{
+    TXT_CAST_ARG(txt_widget_t, widget);
+
+    if (widget->widget_class->selectable != NULL)
+    {
+        return widget->widget_class->selectable(widget);
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+int TXT_ContainsWidget(TXT_UNCAST_ARG(haystack), TXT_UNCAST_ARG(needle))
+{
+    TXT_CAST_ARG(txt_widget_t, haystack);
+    TXT_CAST_ARG(txt_widget_t, needle);
+
+    while (needle != NULL)
+    {
+        if (needle == haystack)
+        {
+            return 1;
+        }
+
+        needle = needle->parent;
+    }
+
+    return 0;
+}
+
+int TXT_HoveringOverWidget(TXT_UNCAST_ARG(widget))
+{
+    TXT_CAST_ARG(txt_widget_t, widget);
+    txt_window_t *active_window;
+    int x, y;
+
+    // We can only be hovering over widgets in the active window.
+
+    active_window = TXT_GetActiveWindow();
+
+    if (active_window == NULL || !TXT_ContainsWidget(active_window, widget))
+    {
+        return 0;
+    }
+
+    // Is the mouse cursor within the bounds of the widget?
+
+    TXT_GetMousePosition(&x, &y);
+
+    return (x >= widget->x && x < widget->x + widget->w
+         && y >= widget->y && y < widget->y + widget->h);
+}
+
+void TXT_SetWidgetBG(TXT_UNCAST_ARG(widget))
+{
+    TXT_CAST_ARG(txt_widget_t, widget);
+
+    if (widget->focused)
+    {
+        TXT_BGColor(TXT_COLOR_GREY, 0);
+    }
+    else if (TXT_HoveringOverWidget(widget))
+    {
+        TXT_BGColor(TXT_HOVER_BACKGROUND, 0);
+    }
+    else
+    {
+        // Use normal window background.
     }
 }
 

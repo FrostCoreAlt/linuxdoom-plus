@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2005,2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,16 +11,9 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
-//
-//-----------------------------------------------------------------------------
 //
 // Text mode emulation in SDL
 //
-//-----------------------------------------------------------------------------
 
 #ifndef TXT_SDL_H
 #define TXT_SDL_H
@@ -30,8 +21,7 @@
 // The textscreen API itself doesn't need SDL; however, SDL needs its
 // headers included where main() is defined.
 
-#include "SDL.h"
-
+#include <SDL2/SDL.h>
 // Event callback function type: a function of this type can be used
 // to intercept events in the textscreen event processing loop.  
 // Returning 1 will cause the event to be eaten; the textscreen code
@@ -45,6 +35,10 @@ typedef int (*TxtSDLEventCallbackFunc)(SDL_Event *event, void *user_data);
 // user_data is a void pointer to be passed to the callback function.
 
 void TXT_SDL_SetEventCallback(TxtSDLEventCallbackFunc callback, void *user_data);
+
+
+extern SDL_Window *TXT_SDLWindow;
+
 
 #endif /* #ifndef TXT_SDL_H */
 

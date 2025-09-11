@@ -11,31 +11,16 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-//
-// Text mode emulation in SDL
-//
 
-#ifndef TXT_IO_H
-#define TXT_IO_H
+#ifndef TXT_UTF8_H
+#define TXT_UTF8_H
 
-#include "txt_main.h"
+#include <stdarg.h>
 
-typedef struct
-{
-    int bgcolor;
-    int fgcolor;
-} txt_saved_colors_t;
+char *TXT_EncodeUTF8(char *p, unsigned int c);
+unsigned int TXT_DecodeUTF8(const char **ptr);
+unsigned int TXT_UTF8_Strlen(const char *s);
+char *TXT_UTF8_SkipChars(const char *s, unsigned int n);
 
-void TXT_PutSymbol(int c);
-void TXT_PutChar(int c);
-void TXT_Puts(const char *s);
-void TXT_GotoXY(int x, int y);
-void TXT_GetXY(int *x, int *y);
-void TXT_FGColor(txt_color_t color);
-void TXT_BGColor(int color, int blinking);
-void TXT_SaveColors(txt_saved_colors_t *save);
-void TXT_RestoreColors(txt_saved_colors_t *save);
-void TXT_ClearScreen(void);
-
-#endif /* #ifndef TXT_IO_H */
+#endif /* #ifndef TXT_UTF8_H */
 

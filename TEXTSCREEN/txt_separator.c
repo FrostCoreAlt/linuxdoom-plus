@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,11 +11,6 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
-//
 
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +19,7 @@
 #include "txt_gui.h"
 #include "txt_io.h"
 #include "txt_main.h"
+#include "txt_utf8.h"
 #include "txt_window.h"
 
 static void TXT_SeparatorSizeCalc(TXT_UNCAST_ARG(separator))
@@ -36,7 +30,7 @@ static void TXT_SeparatorSizeCalc(TXT_UNCAST_ARG(separator))
     {
         // Minimum width is the string length + two spaces for padding
 
-        separator->widget.w = strlen(separator->label) + 2;
+        separator->widget.w = TXT_UTF8_Strlen(separator->label) + 2;
     }
     else
     {
@@ -46,7 +40,7 @@ static void TXT_SeparatorSizeCalc(TXT_UNCAST_ARG(separator))
     separator->widget.h = 1;
 }
 
-static void TXT_SeparatorDrawer(TXT_UNCAST_ARG(separator), int selected)
+static void TXT_SeparatorDrawer(TXT_UNCAST_ARG(separator))
 {
     TXT_CAST_ARG(txt_separator_t, separator);
     int x, y;
@@ -60,12 +54,11 @@ static void TXT_SeparatorDrawer(TXT_UNCAST_ARG(separator), int selected)
     // to overlap the window borders.
 
     TXT_DrawSeparator(x-2, y, w + 4);
-    
+
     if (separator->label != NULL)
     {
         TXT_GotoXY(x, y);
 
-        TXT_BGColor(TXT_COLOR_BLUE, 0);
         TXT_FGColor(TXT_COLOR_BRIGHT_GREEN);
         TXT_DrawString(" ");
         TXT_DrawString(separator->label);
@@ -80,24 +73,9 @@ static void TXT_SeparatorDestructor(TXT_UNCAST_ARG(separator))
     free(separator->label);
 }
 
-txt_widget_class_t txt_separator_class =
+void TXT_SetSeparatorLabel(txt_separator_t *separator, const char *label)
 {
-    TXT_SeparatorSizeCalc,
-    TXT_SeparatorDrawer,
-    NULL,
-    TXT_SeparatorDestructor,
-    NULL,
-    NULL,
-};
-
-txt_separator_t *TXT_NewSeparator(char *label)
-{
-    txt_separator_t *separator;
-
-    separator = malloc(sizeof(txt_separator_t));
-
-    TXT_InitWidget(separator, &txt_separator_class);
-    separator->widget.selectable = 0;
+    free(separator->label);
 
     if (label != NULL)
     {
@@ -107,6 +85,29 @@ txt_separator_t *TXT_NewSeparator(char *label)
     {
         separator->label = NULL;
     }
+}
+
+txt_widget_class_t txt_separator_class =
+{
+    TXT_NeverSelectable,
+    TXT_SeparatorSizeCalc,
+    TXT_SeparatorDrawer,
+    NULL,
+    TXT_SeparatorDestructor,
+    NULL,
+    NULL,
+};
+
+txt_separator_t *TXT_NewSeparator(const char *label)
+{
+    txt_separator_t *separator;
+
+    separator = malloc(sizeof(txt_separator_t));
+
+    TXT_InitWidget(separator, &txt_separator_class);
+
+    separator->label = NULL;
+    TXT_SetSeparatorLabel(separator, label);
 
     return separator;
 }

@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,14 +11,10 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
-//
 
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "doomkeys.h"
 
@@ -28,6 +22,7 @@
 #include "txt_gui.h"
 #include "txt_io.h"
 #include "txt_main.h"
+#include "txt_utf8.h"
 #include "txt_window.h"
 
 static void TXT_WindowActionSizeCalc(TXT_UNCAST_ARG(action))
@@ -35,27 +30,36 @@ static void TXT_WindowActionSizeCalc(TXT_UNCAST_ARG(action))
     TXT_CAST_ARG(txt_window_action_t, action);
     char buf[10];
 
-    TXT_GetKeyDescription(action->key, buf);
+    TXT_GetKeyDescription(action->key, buf, sizeof(buf));
 
-    // Minimum width is the string length + two spaces for padding
+    // Width is label length, plus key description length, plus '='
+    // and two surrounding spaces.
 
-    action->widget.w = strlen(action->label) + strlen(buf) + 1;
+    action->widget.w = TXT_UTF8_Strlen(action->label)
+                     + TXT_UTF8_Strlen(buf) + 3;
     action->widget.h = 1;
 }
 
-static void TXT_WindowActionDrawer(TXT_UNCAST_ARG(action), int selected)
+static void TXT_WindowActionDrawer(TXT_UNCAST_ARG(action))
 {
     TXT_CAST_ARG(txt_window_action_t, action);
+    int hovering;
     char buf[10];
 
-    TXT_GetKeyDescription(action->key, buf);
+    TXT_GetKeyDescription(action->key, buf, sizeof(buf));
 
-    TXT_FGColor(TXT_COLOR_BRIGHT_GREEN);
+    hovering = TXT_HoveringOverWidget(action);
+    TXT_SetWidgetBG(action);
+
+    TXT_DrawString(" ");
+    TXT_FGColor(hovering ? TXT_COLOR_BRIGHT_WHITE : TXT_COLOR_BRIGHT_GREEN);
     TXT_DrawString(buf);
     TXT_FGColor(TXT_COLOR_BRIGHT_CYAN);
     TXT_DrawString("=");
+
     TXT_FGColor(TXT_COLOR_BRIGHT_WHITE);
     TXT_DrawString(action->label);
+    TXT_DrawString(" ");
 }
 
 static void TXT_WindowActionDestructor(TXT_UNCAST_ARG(action))
@@ -69,7 +73,7 @@ static int TXT_WindowActionKeyPress(TXT_UNCAST_ARG(action), int key)
 {
     TXT_CAST_ARG(txt_window_action_t, action);
 
-    if (key == action->key)
+    if (tolower(key) == tolower(action->key))
     {
         TXT_EmitSignal(action, "pressed");
         return 1;
@@ -93,6 +97,7 @@ static void TXT_WindowActionMousePress(TXT_UNCAST_ARG(action),
 
 txt_widget_class_t txt_window_action_class =
 {
+    TXT_AlwaysSelectable,
     TXT_WindowActionSizeCalc,
     TXT_WindowActionDrawer,
     TXT_WindowActionKeyPress,

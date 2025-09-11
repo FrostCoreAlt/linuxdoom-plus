@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -12,11 +10,6 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
 //
 
 #include <stdlib.h>
@@ -39,7 +32,7 @@ static void TXT_StrutSizeCalc(TXT_UNCAST_ARG(strut))
     strut->widget.h = strut->height;
 }
 
-static void TXT_StrutDrawer(TXT_UNCAST_ARG(strut), int selected)
+static void TXT_StrutDrawer(TXT_UNCAST_ARG(strut))
 {
     // Nothing is drawn for a strut.
 }
@@ -55,6 +48,7 @@ static int TXT_StrutKeyPress(TXT_UNCAST_ARG(strut), int key)
 
 txt_widget_class_t txt_strut_class =
 {
+    TXT_NeverSelectable,
     TXT_StrutSizeCalc,
     TXT_StrutDrawer,
     TXT_StrutKeyPress,
@@ -70,7 +64,6 @@ txt_strut_t *TXT_NewStrut(int width, int height)
     strut = malloc(sizeof(txt_strut_t));
 
     TXT_InitWidget(strut, &txt_strut_class);
-    strut->widget.selectable = 0;
     strut->width = width;
     strut->height = height;
 

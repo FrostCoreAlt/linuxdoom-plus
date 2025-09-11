@@ -25,8 +25,9 @@ static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 
 #include <stdlib.h>
+#include <string.h>
 
-#include "SDL.h"
+#include <SDL.h>
 
 #include "m_swap.h"
 #include "doomstat.h"
@@ -38,7 +39,9 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include "doomdef.h"
 
 
-SDL_Surface *screen;
+SDL_Window *window = NULL;
+SDL_Surface *screen = NULL;      /* the SDL surface we'll blit to the window surface from */
+SDL_Surface *window_surface = NULL; /* the actual window surface obtained via SDL_GetWindowSurface */
 
 // Fake mouse handling.
 boolean		grabMouse;
@@ -46,15 +49,11 @@ boolean		grabMouse;
 // Blocky mode,
 // replace each 320x200 pixel with multiply*multiply pixels.
 // According to Dave Taylor, it still is a bonehead thing
-// to use ....
+// to use .... 
 static int	multiply=1;
 
 
-//
-//  Translates the key 
-//
-
-int xlatekey(SDL_keysym *key)
+int xlatekey(SDL_Keysym *key)
 {
 
     int rc;
@@ -102,9 +101,9 @@ int xlatekey(SDL_keysym *key)
 	break;
 	
       case SDLK_LALT:
-      case SDLK_LMETA:
+      case SDLK_LGUI:
       case SDLK_RALT:
-      case SDLK_RMETA:
+      case SDLK_RGUI:
 	rc = KEY_RALT;
 	break;
 	
@@ -119,7 +118,16 @@ int xlatekey(SDL_keysym *key)
 
 void I_ShutdownGraphics(void)
 {
-  SDL_Quit();
+    if (window) {
+        SDL_DestroyWindow(window);
+        window = NULL;
+    }
+    if (screen) {
+        SDL_FreeSurface(screen);
+        screen = NULL;
+    }
+    /* window_surface is owned by SDL, no need to free separately */
+    SDL_Quit();
 }
 
 
@@ -165,14 +173,15 @@ void I_GetEvent(SDL_Event *Event)
 	D_PostEvent(&event);
 	break;
 
-#if (SDL_MAJOR_VERSION >= 0) && (SDL_MINOR_VERSION >= 9)
+#if (SDL_MAJOR_VERSION >= 2)
       case SDL_MOUSEMOTION:
 	/* Ignore mouse warp events */
-	if ((Event->motion.x != screen->w/2)||(Event->motion.y != screen->h/2))
+	if (!window) break;
+	if ((Event->motion.x != window_surface->w/2)||(Event->motion.y != window_surface->h/2))
 	{
 	    /* Warp the mouse back to the center */
 	    if (grabMouse) {
-		SDL_WarpMouse(screen->w/2, screen->h/2);
+		SDL_WarpMouseInWindow(window, window_surface->w/2, window_surface->h/2);
 	    }
 	    event.type = ev_mouse;
 	    event.data1 = 0
@@ -188,7 +197,8 @@ void I_GetEvent(SDL_Event *Event)
 
       case SDL_QUIT:
 	I_Quit();
-    }
+    	exit(0);
+      }
 
 }
 
@@ -217,7 +227,6 @@ void I_UpdateNoBlit (void)
 //
 void I_FinishUpdate (void)
 {
-
     static int	lasttic;
     int		tics;
     int		i;
@@ -237,12 +246,19 @@ void I_FinishUpdate (void)
 	    screens[0][ (SCREENHEIGHT-1)*SCREENWIDTH + i] = 0x0;
     }
 
-    // scales the screen size before blitting it
+    /* We will blit/scale our 'screen' surface (which may be an 8-bit surface or a raw buffer)
+       onto the window surface and then update the window. The original code used
+       SDL_SetVideoMode and direct access; in SDL2 we use SDL_GetWindowSurface + SDL_UpdateWindowSurface.
+    */
+
+    if (!window || !window_surface || !screen) return;
+
     if ( SDL_MUSTLOCK(screen) ) {
 	if ( SDL_LockSurface(screen) < 0 ) {
 	    return;
 	}
     }
+
     if ((multiply == 1) && SDL_MUSTLOCK(screen))
     {
 	unsigned char *olineptr;
@@ -366,7 +382,17 @@ void I_FinishUpdate (void)
     if ( SDL_MUSTLOCK(screen) ) {
 	SDL_UnlockSurface(screen);
     }
-    SDL_UpdateRect(screen, 0, 0, 0, 0);
+
+    /*
+      Now blit the 'screen' surface to the window surface.
+      If 'screen' is paletted 8-bit and window_surface is a different format,
+      SDL_BlitSurface will convert as needed.
+    */
+    if (SDL_BlitSurface(screen, NULL, window_surface, NULL) < 0) {
+        /* Blit error but continue */
+    }
+
+    SDL_UpdateWindowSurface(window);
 }
 
 
@@ -391,9 +417,11 @@ void I_SetPalette (byte* palette)
 	colors[i].r = gammatable[usegamma][*palette++];
 	colors[i].g = gammatable[usegamma][*palette++];
 	colors[i].b = gammatable[usegamma][*palette++];
-	colors[i].unused = 0;
     }
-    SDL_SetColors(screen, colors, 0, 256);
+    /* SDL2: set colors on the surface palette if present */
+    if (screen && screen->format && screen->format->palette) {
+        SDL_SetPaletteColors(screen->format->palette, colors, 0, 256);
+    }
 }
 
 
@@ -401,16 +429,21 @@ void I_InitGraphics(void)
 {
 
     static int	firsttime=1;
-    Uint16 video_w, video_h, w, h;
+    int video_w, video_h, w, h;
     Uint8 video_bpp;
     Uint32 video_flags;
 
     if (!firsttime)
 	return;
     firsttime = 0;
-    video_flags = (SDL_SWSURFACE|SDL_HWPALETTE|SDL_VIDEORESIZE);
-    if (!!M_CheckParm("-fullscreen"))
-        video_flags |= SDL_FULLSCREEN;
+
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE) < 0) {
+        I_Error("SDL_Init failed: %s", SDL_GetError());
+    }
+
+    video_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
+    if (M_CheckParm("-fullscreen"))
+        video_flags |= SDL_WINDOW_FULLSCREEN;
 
     if (M_CheckParm("-2"))
 	multiply = 2;
@@ -449,19 +482,50 @@ void I_InitGraphics(void)
         I_Error("Smallest available mode (%dx%d) is too large!",
 						video_w, video_h);
     }
-    screen = SDL_SetVideoMode(video_w, video_h, 8, video_flags);
-    if ( screen == NULL ) {
-        I_Error("Could not set %dx%d video mode: %s", video_w, video_h,
-							SDL_GetError());
+
+    /* Create a window and get its surface */
+    char title[64];
+    snprintf(title, sizeof(title),
+            "LinuxDoom+ v%i.%i",
+            EVERSION / 100, EVERSION % 100);
+    window = SDL_CreateWindow(title,
+                              SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                              video_w, video_h, video_flags);
+    if (!window) {
+        I_Error("Could not create window %dx%d: %s", video_w, video_h, SDL_GetError());
     }
-    SDL_ShowCursor(0);
-    SDL_WM_SetIcon(SDL_LoadBMP("icon.bmp"), NULL);
-    SDL_WM_SetCaption("LinuxDoom+ V1.13", "ldoom");
+
+    /* Get the window surface which we'll blit to every frame */
+    window_surface = SDL_GetWindowSurface(window);
+    if (!window_surface) {
+        I_Error("Could not get window surface: %s", SDL_GetError());
+    }
+
+    /* Create an 8-bit software surface for DOOM rendering (paletted) */
+    screen = SDL_CreateRGBSurfaceWithFormat(0, video_w, video_h, 8, SDL_PIXELFORMAT_INDEX8);
+    if (!screen) {
+        I_Error("Could not create screen surface: %s", SDL_GetError());
+    }
+
+    SDL_ShowCursor(SDL_DISABLE);
+
+    /* set window icon if available */
+    {
+        SDL_Surface *icon = SDL_LoadBMP("icon.bmp");
+        if (icon) {
+            SDL_SetWindowIcon(window, icon);
+            SDL_FreeSurface(icon);
+        }
+    }
+    SDL_SetWindowTitle(window, "LinuxDoom+ V1.13");
 
     /* Set up the screen displays */
     w = SCREENWIDTH * multiply;
     h = SCREENHEIGHT * multiply;
-    if (multiply == 1 && !SDL_MUSTLOCK(screen) ) {
+    if (multiply == 1 && !SDL_MUSTLOCK(screen) && screen->format->BitsPerPixel == 8) {
+	/* If the window surface actually is 8bpp we could point screens[0] to it,
+	   but in SDL2 window_surface is often not paletted — so we keep our own
+	   paletted 'screen' surface and blit it to window_surface each frame. */
 	screens[0] = (unsigned char *) screen->pixels;
     } else {
 	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);

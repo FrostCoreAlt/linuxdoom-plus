@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,11 +11,6 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
-//
 
 #include <stdlib.h>
 #include <string.h>
@@ -28,35 +21,37 @@
 #include "txt_gui.h"
 #include "txt_io.h"
 #include "txt_main.h"
+#include "txt_utf8.h"
 #include "txt_window.h"
 
 static void TXT_CheckBoxSizeCalc(TXT_UNCAST_ARG(checkbox))
 {
     TXT_CAST_ARG(txt_checkbox_t, checkbox);
 
-    // Minimum width is the string length + two spaces for padding
+    // Minimum width is the string length + right-side space for padding
 
-    checkbox->widget.w = strlen(checkbox->label) + 6;
+    checkbox->widget.w = TXT_UTF8_Strlen(checkbox->label) + 5;
     checkbox->widget.h = 1;
 }
 
-static void TXT_CheckBoxDrawer(TXT_UNCAST_ARG(checkbox), int selected)
+static void TXT_CheckBoxDrawer(TXT_UNCAST_ARG(checkbox))
 {
     TXT_CAST_ARG(txt_checkbox_t, checkbox);
+    txt_saved_colors_t colors;
     int i;
     int w;
 
     w = checkbox->widget.w;
 
-    TXT_BGColor(TXT_COLOR_BLUE, 0);
+    TXT_SaveColors(&colors);
     TXT_FGColor(TXT_COLOR_BRIGHT_CYAN);
-    TXT_DrawString(" (");
+    TXT_DrawString("(");
 
     TXT_FGColor(TXT_COLOR_BRIGHT_WHITE);
 
     if ((*checkbox->variable != 0) ^ checkbox->inverted)
     {
-        TXT_DrawString("\x07");
+        TXT_DrawCodePageString("\x07");
     }
     else
     {
@@ -67,16 +62,11 @@ static void TXT_CheckBoxDrawer(TXT_UNCAST_ARG(checkbox), int selected)
 
     TXT_DrawString(") ");
 
-    if (selected)
-    {
-        TXT_BGColor(TXT_COLOR_GREY, 0);
-    }
-
-    TXT_FGColor(TXT_COLOR_BRIGHT_WHITE);
-
+    TXT_RestoreColors(&colors);
+    TXT_SetWidgetBG(checkbox);
     TXT_DrawString(checkbox->label);
-    
-    for (i=strlen(checkbox->label); i < w-6; ++i)
+
+    for (i = TXT_UTF8_Strlen(checkbox->label); i < w-4; ++i)
     {
         TXT_DrawString(" ");
     }
@@ -117,6 +107,7 @@ static void TXT_CheckBoxMousePress(TXT_UNCAST_ARG(checkbox), int x, int y, int b
 
 txt_widget_class_t txt_checkbox_class =
 {
+    TXT_AlwaysSelectable,
     TXT_CheckBoxSizeCalc,
     TXT_CheckBoxDrawer,
     TXT_CheckBoxKeyPress,
@@ -125,7 +116,7 @@ txt_widget_class_t txt_checkbox_class =
     NULL,
 };
 
-txt_checkbox_t *TXT_NewCheckBox(char *label, int *variable)
+txt_checkbox_t *TXT_NewCheckBox(const char *label, int *variable)
 {
     txt_checkbox_t *checkbox;
 
@@ -139,7 +130,7 @@ txt_checkbox_t *TXT_NewCheckBox(char *label, int *variable)
     return checkbox;
 }
 
-txt_checkbox_t *TXT_NewInvertedCheckBox(char *label, int *variable)
+txt_checkbox_t *TXT_NewInvertedCheckBox(const char *label, int *variable)
 {
     txt_checkbox_t *result;
 

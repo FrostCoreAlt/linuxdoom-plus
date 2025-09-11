@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -12,11 +10,6 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
 //
 
 #ifndef TXT_RADIOBUTTON_H
@@ -61,7 +54,8 @@ struct txt_radiobutton_s
 /**
  * Create a new radio button widget.
  *
- * @param label          The label to display next to the radio button.
+ * @param label          The label to display next to the radio button
+ *                       (UTF-8 format).
  * @param variable       Pointer to the variable tracking whether this
  *                       radio button is selected.
  * @param value          If the variable is equal to this value, the
@@ -69,16 +63,16 @@ struct txt_radiobutton_s
  * @return               Pointer to the new radio button widget.
  */
 
-txt_radiobutton_t *TXT_NewRadioButton(char *label, int *variable, int value);
+txt_radiobutton_t *TXT_NewRadioButton(const char *label, int *variable, int value);
 
 /**
  * Set the label on a radio button.
  *
  * @param radiobutton    The radio button.
- * @param value          The new label.
+ * @param value          The new label (UTF-8 format).
  */
 
-void TXT_SetRadioButtonLabel(txt_radiobutton_t *radiobutton, char *value);
+void TXT_SetRadioButtonLabel(txt_radiobutton_t *radiobutton, const char *value);
 
 #endif /* #ifndef TXT_RADIOBUTTON_H */
 

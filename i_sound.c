@@ -81,8 +81,8 @@ rcsid[] = "$Id: i_sound.c 77 2005-09-06 21:11:23Z fraggle $";
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "SDL.h"
-#include "SDL_mixer.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -103,6 +103,7 @@ rcsid[] = "$Id: i_sound.c 77 2005-09-06 21:11:23Z fraggle $";
 #define NUM_CHANNELS		16
 
 static int sound_initialised = 0;
+
 static Mix_Chunk sound_chunks[NUMSFX];
 
 static byte *expand_sound_data(byte *data, int samplerate, int length)
@@ -203,12 +204,26 @@ void I_SetSfxVolume(int volume)
   //  the mixing.
   snd_SfxVolume = volume;
 }
+static boolean musicpaused = false;
+static void UpdateMusicVolume(void)
+{
+    int vol;
 
-// MUSIC API - dummy. Some code from DOS version.
+    if (musicpaused)
+        vol = 0;
+    else
+        vol = (snd_MusicVolume * MIX_MAX_VOLUME) / 15;
+
+    Mix_VolumeMusic(vol);
+}
+
+// MUSIC API - SDL
+static int music_initialised;
 void I_SetMusicVolume(int volume)
 {
   // Internal state variable.
   snd_MusicVolume = volume;
+  UpdateMusicVolume();
   // Now set volume on output device.
   // Whatever( snd_MusciVolume );
 }
@@ -362,16 +377,17 @@ I_InitSound()
 }
 
 
-
-
 //
 // MUSIC API.
-// Still no music done.
-// Remains. Dummies.
 //
-void I_InitMusic(void)		{ }
-void I_ShutdownMusic(void)	{ }
-
+void I_InitMusic(void)		{ 
+    if (M_CheckParm("-nomusic") || M_CheckParm("-nosound"))
+        return;
+    music_initialised = true;
+}
+void I_ShutdownMusic(void)	{ 
+    music_initialised = false;
+}
 static int	looping=0;
 static int	musicdies=-1;
 
@@ -393,16 +409,27 @@ void I_PlaySong(void *handle, int looping)
 
 void I_PauseSong (void *handle)
 {
-    Mix_PauseMusic();
+    if (!music_initialised)
+        return;
+
+    musicpaused = true;
+    UpdateMusicVolume();
 }
 
 void I_ResumeSong (void *handle)
 {
-    Mix_ResumeMusic();
+    if (!music_initialised)
+        return;
+
+    musicpaused = false;
+    UpdateMusicVolume();
 }
 
 void I_StopSong(void *handle)
 {
+    if (!music_initialised)
+        return;
+
     Mix_HaltMusic();
 }
 

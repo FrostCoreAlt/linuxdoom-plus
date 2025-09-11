@@ -1089,6 +1089,7 @@ void M_QuitResponse(int ch)
 	    S_StartSound(NULL,quitsounds[(gametic>>2)&7]);
 	I_WaitVBL(105);
     }
+    I_Quit();
     byte *endoom;
     endoom = W_CacheLumpName("ENDOOM",PU_CACHE);
     I_Endoom (endoom);

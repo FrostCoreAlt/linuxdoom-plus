@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2005,2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,16 +11,9 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
-//
-//-----------------------------------------------------------------------------
 //
 // Text mode emulation in SDL
 //
-//-----------------------------------------------------------------------------
 
 #include "SDL.h"
 
@@ -35,6 +26,7 @@
 
 #include "txt_main.h"
 #include "txt_sdl.h"
+#include "txt_utf8.h"
 
 #if defined(_MSC_VER) && !defined(__cplusplus)
 #define inline __inline
@@ -42,82 +34,126 @@
 
 typedef struct
 {
-    unsigned char *data;
+    const char *name;
+    const uint8_t *data;
     unsigned int w;
     unsigned int h;
 } txt_font_t;
 
 // Fonts:
 
-#include "txt_font.h"
-#include "txt_smallfont.h"
+#include "fonts/small.h"
+#include "fonts/normal.h"
+#include "fonts/large.h"
+#include "fonts/codepage.h"
 
 // Time between character blinks in ms
 
 #define BLINK_PERIOD 250
 
-static SDL_Surface *screen;
+SDL_Window *TXT_SDLWindow;
+static SDL_Surface *screenbuffer;
 static unsigned char *screendata;
-static int key_mapping = 1;
+static SDL_Renderer *renderer;
+
+// Current input mode.
+static txt_input_mode_t input_mode = TXT_INPUT_NORMAL;
+
+// Dimensions of the screen image in screen coordinates (not pixels); this
+// is the value that was passed to SDL_CreateWindow().
+static int screen_image_w, screen_image_h;
 
 static TxtSDLEventCallbackFunc event_callback;
 static void *event_callback_data;
 
 // Font we are using:
+static const txt_font_t *font;
 
-static txt_font_t *font;
+// Dummy "font" that means to try highdpi rendering, or fallback to
+// normal_font otherwise.
+static const txt_font_t highdpi_font = { "normal-highdpi", NULL, 8, 16 };
 
-//#define TANGO
+// Mapping from SDL keyboard scancode to internal key code.
+static const int scancode_translate_table[] = SCANCODE_TO_KEYS_ARRAY;
 
-#ifndef TANGO
+// String names of keys. This is a fallback; we usually use the SDL API.
+static const struct {
+    int key;
+    const char *name;
+} key_names[] = KEY_NAMES_ARRAY;
 
-static SDL_Color ega_colors[] = 
+// Unicode key mapping; see codepage.h.
+static const short code_page_to_unicode[] = CODE_PAGE_TO_UNICODE;
+
+static const SDL_Color ega_colors[] =
 {
-    {0x00, 0x00, 0x00, 0x00},          // 0: Black
-    {0x00, 0x00, 0xa8, 0x00},          // 1: Blue
-    {0x00, 0xa8, 0x00, 0x00},          // 2: Green
-    {0x00, 0xa8, 0xa8, 0x00},          // 3: Cyan
-    {0xa8, 0x00, 0x00, 0x00},          // 4: Red
-    {0xa8, 0x00, 0xa8, 0x00},          // 5: Magenta
-    {0xa8, 0x54, 0x00, 0x00},          // 6: Brown
-    {0xa8, 0xa8, 0xa8, 0x00},          // 7: Grey
-    {0x54, 0x54, 0x54, 0x00},          // 8: Dark grey
-    {0x54, 0x54, 0xfe, 0x00},          // 9: Bright blue
-    {0x54, 0xfe, 0x54, 0x00},          // 10: Bright green
-    {0x54, 0xfe, 0xfe, 0x00},          // 11: Bright cyan
-    {0xfe, 0x54, 0x54, 0x00},          // 12: Bright red
-    {0xfe, 0x54, 0xfe, 0x00},          // 13: Bright magenta
-    {0xfe, 0xfe, 0x54, 0x00},          // 14: Yellow
-    {0xfe, 0xfe, 0xfe, 0x00},          // 15: Bright white
+    {0x00, 0x00, 0x00, 0xff},          // 0: Black
+    {0x00, 0x00, 0xaa, 0xff},          // 1: Blue
+    {0x00, 0xaa, 0x00, 0xff},          // 2: Green
+    {0x00, 0xaa, 0xaa, 0xff},          // 3: Cyan
+    {0xaa, 0x00, 0x00, 0xff},          // 4: Red
+    {0xaa, 0x00, 0xaa, 0xff},          // 5: Magenta
+    {0xaa, 0x55, 0x00, 0xff},          // 6: Brown
+    {0xaa, 0xaa, 0xaa, 0xff},          // 7: Grey
+    {0x55, 0x55, 0x55, 0xff},          // 8: Dark grey
+    {0x55, 0x55, 0xff, 0xff},          // 9: Bright blue
+    {0x55, 0xff, 0x55, 0xff},          // 10: Bright green
+    {0x55, 0xff, 0xff, 0xff},          // 11: Bright cyan
+    {0xff, 0x55, 0x55, 0xff},          // 12: Bright red
+    {0xff, 0x55, 0xff, 0xff},          // 13: Bright magenta
+    {0xff, 0xff, 0x55, 0xff},          // 14: Yellow
+    {0xff, 0xff, 0xff, 0xff},          // 15: Bright white
 };
 
-#else
+#ifdef _WIN32
 
-// Colors that fit the Tango desktop guidelines: see
-// http://tango.freedesktop.org/ also
-// http://uwstopia.nl/blog/2006/07/tango-terminal
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 
-static SDL_Color ega_colors[] = 
+// Examine system DPI settings to determine whether to use the large font.
+
+static int Win32_UseLargeFont(void)
 {
-    {0x2e, 0x34, 0x36, 0x00},          // 0: Black
-    {0x34, 0x65, 0xa4, 0x00},          // 1: Blue
-    {0x4e, 0x9a, 0x06, 0x00},          // 2: Green
-    {0x06, 0x98, 0x9a, 0x00},          // 3: Cyan
-    {0xcc, 0x00, 0x00, 0x00},          // 4: Red
-    {0x75, 0x50, 0x7b, 0x00},          // 5: Magenta
-    {0xc4, 0xa0, 0x00, 0x00},          // 6: Brown
-    {0xd3, 0xd7, 0xcf, 0x00},          // 7: Grey
-    {0x55, 0x57, 0x53, 0x00},          // 8: Dark grey
-    {0x72, 0x9f, 0xcf, 0x00},          // 9: Bright blue
-    {0x8a, 0xe2, 0x34, 0x00},          // 10: Bright green
-    {0x34, 0xe2, 0xe2, 0x00},          // 11: Bright cyan
-    {0xef, 0x29, 0x29, 0x00},          // 12: Bright red
-    {0x34, 0xe2, 0xe2, 0x00},          // 13: Bright magenta
-    {0xfc, 0xe9, 0x4f, 0x00},          // 14: Yellow
-    {0xee, 0xee, 0xec, 0x00},          // 15: Bright white
-};
+    HDC hdc = GetDC(NULL);
+    int dpix;
+
+    if (!hdc)
+    {
+        return 0;
+    }
+
+    dpix = GetDeviceCaps(hdc, LOGPIXELSX);
+    ReleaseDC(NULL, hdc);
+
+    // 144 is the DPI when using "150%" scaling. If the user has this set
+    // then consider this an appropriate threshold for using the large font.
+
+    return dpix >= 144;
+}
 
 #endif
+
+static const txt_font_t *FontForName(const char *name)
+{
+    int i;
+    const txt_font_t *fonts[] =
+    {
+        &small_font,
+        &normal_font,
+        &large_font,
+        &highdpi_font,
+        NULL,
+    };
+
+    for (i = 0; fonts[i]->name != NULL; ++i)
+    {
+        if (!strcmp(fonts[i]->name, name))
+        {
+            return fonts[i];
+        }
+    }
+    return NULL;
+}
 
 //
 // Select the font to use, based on screen resolution
@@ -128,37 +164,60 @@ static SDL_Color ega_colors[] =
 
 static void ChooseFont(void)
 {
-    SDL_Rect **modes;
-    int i;
+    SDL_DisplayMode desktop_info;
+    char *env;
 
-    font = &main_font;
-
-    // Check all modes
-
-    modes = SDL_ListModes(NULL, SDL_FULLSCREEN);
-
-    // If in doubt and we can't get a list, always prefer to
-    // fall back to the normal font:
-
-    if (modes == NULL || modes == (SDL_Rect **) -1 || *modes == NULL)
+    // Allow normal selection to be overridden from an environment variable:
+    env = getenv("TEXTSCREEN_FONT");
+    if (env != NULL)
     {
-#ifdef _WIN32_WCE
-        font = &small_font;
-#endif
-        return;
-    }
+        font = FontForName(env);
 
-    for (i=0; modes[i] != NULL; ++i)
-    {
-        if (modes[i]->w >= 640 && modes[i]->h >= 480)
+        if (font != NULL)
         {
             return;
         }
     }
 
-    // No large mode found.
+    // Get desktop resolution.
+    // If in doubt and we can't get a list, always prefer to
+    // fall back to the normal font:
+    if (SDL_GetCurrentDisplayMode(0, &desktop_info))
+    {
+        font = &highdpi_font;
+        return;
+    }
 
-    font = &small_font;
+    // On tiny low-res screens (eg. palmtops) use the small font.
+    // If the screen resolution is at least 1920x1080, this is
+    // a modern high-resolution display, and we can use the
+    // large font.
+
+    if (desktop_info.w < 640 || desktop_info.h < 480)
+    {
+        font = &small_font;
+    }
+#ifdef _WIN32
+    // On Windows we can use the system DPI settings to make a
+    // more educated guess about whether to use the large font.
+
+    else if (Win32_UseLargeFont())
+    {
+        font = &large_font;
+    }
+#endif
+    // TODO: Detect high DPI on Linux by inquiring about Gtk+ scale
+    // settings. This looks like it should just be a case of shelling
+    // out to invoke the 'gsettings' command, eg.
+    //   gsettings get org.gnome.desktop.interface text-scaling-factor
+    // and using large_font if the result is >= 2.
+    else
+    {
+        // highdpi_font usually means normal_font (the normal resolution
+        // version), but actually means "set the HIGHDPI flag and try
+        // to use large_font if we initialize successfully".
+        font = &highdpi_font;
+    }
 }
 
 //
@@ -169,33 +228,79 @@ static void ChooseFont(void)
 
 int TXT_Init(void)
 {
-    if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
+    int flags = 0;
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
         return 0;
     }
 
     ChooseFont();
 
-    screen = SDL_SetVideoMode(TXT_SCREEN_W * font->w,
-                              TXT_SCREEN_H * font->h, 8, 0);
+    screen_image_w = TXT_SCREEN_W * font->w;
+    screen_image_h = TXT_SCREEN_H * font->h;
 
-    if (screen == NULL)
+    // If highdpi_font is selected, try to initialize high dpi rendering.
+    if (font == &highdpi_font)
+    {
+        flags |= SDL_WINDOW_ALLOW_HIGHDPI;
+    }
+
+    TXT_SDLWindow =
+        SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                         screen_image_w, screen_image_h, flags);
+
+    if (TXT_SDLWindow == NULL)
         return 0;
 
-    SDL_SetColors(screen, ega_colors, 0, 16);
-    SDL_EnableUNICODE(1);
+    renderer = SDL_CreateRenderer(TXT_SDLWindow, -1, SDL_RENDERER_PRESENTVSYNC);
+
+    if (renderer == NULL)
+        renderer = SDL_CreateRenderer(TXT_SDLWindow, -1, SDL_RENDERER_SOFTWARE);
+
+    if (renderer == NULL)
+        return 0;
+
+    // Special handling for OS X retina display. If we successfully set the
+    // highdpi flag, check the output size for the screen renderer. If we get
+    // the 2x doubled size we expect from a retina display, use the large font
+    // for drawing the screen.
+    if ((SDL_GetWindowFlags(TXT_SDLWindow) & SDL_WINDOW_ALLOW_HIGHDPI) != 0)
+    {
+        int render_w, render_h;
+
+        if (SDL_GetRendererOutputSize(renderer, &render_w, &render_h) == 0
+         && render_w >= TXT_SCREEN_W * large_font.w
+         && render_h >= TXT_SCREEN_H * large_font.h)
+        {
+            font = &large_font;
+            // Note that we deliberately do not update screen_image_{w,h}
+            // since these are the dimensions of textscreen image in screen
+            // coordinates, not pixels.
+        }
+    }
+
+    // Failed to initialize for high dpi (retina display) rendering? If so
+    // then use the normal resolution font instead.
+    if (font == &highdpi_font)
+    {
+        font = &normal_font;
+    }
+
+    // Instead, we draw everything into an intermediate 8-bit surface
+    // the same dimensions as the screen. SDL then takes care of all the
+    // 8->32 bit (or whatever depth) color conversions for us.
+    screenbuffer = SDL_CreateRGBSurface(0,
+                                        TXT_SCREEN_W * font->w,
+                                        TXT_SCREEN_H * font->h,
+                                        8, 0, 0, 0, 0);
+
+    SDL_LockSurface(screenbuffer);
+    SDL_SetPaletteColors(screenbuffer->format->palette, ega_colors, 0, 16);
+    SDL_UnlockSurface(screenbuffer);
 
     screendata = malloc(TXT_SCREEN_W * TXT_SCREEN_H * 2);
     memset(screendata, 0, TXT_SCREEN_W * TXT_SCREEN_H * 2);
-
-    // Ignore all mouse motion events
-
-    SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
-
-    // Repeat key presses so we can hold down arrows to scroll down the
-    // menu, for example. This is what setup.exe does.
-
-    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 
     return 1;
 }
@@ -203,7 +308,21 @@ int TXT_Init(void)
 void TXT_Shutdown(void)
 {
     free(screendata);
+    screendata = NULL;
+    SDL_FreeSurface(screenbuffer);
+    screenbuffer = NULL;
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(TXT_SDLWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
+void TXT_SetColor(txt_color_t color, int r, int g, int b)
+{
+    SDL_Color c = {r, g, b, 0xff};
+
+    SDL_LockSurface(screenbuffer);
+    SDL_SetPaletteColors(screenbuffer->format->palette, &c, color, 1);
+    SDL_UnlockSurface(screenbuffer);
 }
 
 unsigned char *TXT_GetScreenData(void)
@@ -214,8 +333,9 @@ unsigned char *TXT_GetScreenData(void)
 static inline void UpdateCharacter(int x, int y)
 {
     unsigned char character;
-    unsigned char *p;
+    const uint8_t *p;
     unsigned char *s, *s1;
+    unsigned int bit;
     int bg, fg;
     unsigned int x1, y1;
 
@@ -237,10 +357,13 @@ static inline void UpdateCharacter(int x, int y)
         }
     }
 
-    p = &font->data[character * font->h];
+    // How many bytes per line?
+    p = &font->data[(character * font->w * font->h) / 8];
+    bit = 0;
 
-    s = ((unsigned char *) screen->pixels) 
-          + (y * font->h * screen->pitch) + (x * font->w);
+    s = ((unsigned char *) screenbuffer->pixels)
+      + (y * font->h * screenbuffer->pitch)
+      + (x * font->w);
 
     for (y1=0; y1<font->h; ++y1)
     {
@@ -248,7 +371,7 @@ static inline void UpdateCharacter(int x, int y)
 
         for (x1=0; x1<font->w; ++x1)
         {
-            if (*p & (1 << (7-x1)))
+            if (*p & (1 << bit))
             {
                 *s1++ = fg;
             }
@@ -256,10 +379,16 @@ static inline void UpdateCharacter(int x, int y)
             {
                 *s1++ = bg;
             }
+
+            ++bit;
+            if (bit == 8)
+            {
+                ++p;
+                bit = 0;
+            }
         }
 
-        ++p;
-        s += screen->pitch;
+        s += screenbuffer->pitch;
     }
 }
 
@@ -279,11 +408,26 @@ static int LimitToRange(int val, int min, int max)
     }
 }
 
+static void GetDestRect(SDL_Rect *rect)
+{
+    int w, h;
+
+    SDL_GetRendererOutputSize(renderer, &w, &h);
+    rect->x = (w - screenbuffer->w) / 2;
+    rect->y = (h - screenbuffer->h) / 2;
+    rect->w = screenbuffer->w;
+    rect->h = screenbuffer->h;
+}
+
 void TXT_UpdateScreenArea(int x, int y, int w, int h)
 {
+    SDL_Texture *screentx;
+    SDL_Rect rect;
     int x1, y1;
     int x_end;
     int y_end;
+
+    SDL_LockSurface(screenbuffer);
 
     x_end = LimitToRange(x + w, 0, TXT_SCREEN_W);
     y_end = LimitToRange(y + h, 0, TXT_SCREEN_H);
@@ -298,9 +442,20 @@ void TXT_UpdateScreenArea(int x, int y, int w, int h)
         }
     }
 
-    SDL_UpdateRect(screen,
-                   x * font->w, y * font->h,
-                   (x_end - x) * font->w, (y_end - y) * font->h);
+    SDL_UnlockSurface(screenbuffer);
+
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+
+    // TODO: This is currently creating a new texture every time we render
+    // the screen; find a more efficient way to do it.
+    screentx = SDL_CreateTextureFromSurface(renderer, screenbuffer);
+
+    SDL_RenderClear(renderer);
+    GetDestRect(&rect);
+    SDL_RenderCopy(renderer, screentx, NULL, &rect);
+    SDL_RenderPresent(renderer);
+
+    SDL_DestroyTexture(screentx);
 }
 
 void TXT_UpdateScreen(void)
@@ -310,122 +465,92 @@ void TXT_UpdateScreen(void)
 
 void TXT_GetMousePosition(int *x, int *y)
 {
-#if SDL_VERSION_ATLEAST(1, 3, 0)
-    SDL_GetMouseState(x, y);
-#else
-    SDL_GetMouseState(x, y);
-#endif
+    int window_w, window_h;
+    int origin_x, origin_y;
 
-    *x /= font->w;
-    *y /= font->h;
+    SDL_GetMouseState(x, y);
+
+    // Translate mouse position from 'pixel' position into character position.
+    // We are working here in screen coordinates and not pixels, since this is
+    // what SDL_GetWindowSize() returns; we must calculate and subtract the
+    // origin position since we center the image within the window.
+    SDL_GetWindowSize(TXT_SDLWindow, &window_w, &window_h);
+    origin_x = (window_w - screen_image_w) / 2;
+    origin_y = (window_h - screen_image_h) / 2;
+    *x = ((*x - origin_x) * TXT_SCREEN_W) / screen_image_w;
+    *y = ((*y - origin_y) * TXT_SCREEN_H) / screen_image_h;
+
+    if (*x < 0)
+    {
+        *x = 0;
+    }
+    else if (*x >= TXT_SCREEN_W)
+    {
+        *x = TXT_SCREEN_W - 1;
+    }
+    if (*y < 0)
+    {
+        *y = 0;
+    }
+    else if (*y >= TXT_SCREEN_H)
+    {
+        *y = TXT_SCREEN_H - 1;
+    }
 }
 
 //
 // Translates the SDL key
 //
 
-static int TranslateKey(SDL_keysym *sym)
+// XXX: duplicate from doomtype.h
+#define arrlen(array) (sizeof(array) / sizeof(*array))
+
+static int TranslateScancode(SDL_Scancode scancode)
 {
-    switch(sym->sym)
+    switch (scancode)
     {
-        case SDLK_LEFT:        return KEY_LEFTARROW;
-        case SDLK_RIGHT:       return KEY_RIGHTARROW;
-        case SDLK_DOWN:        return KEY_DOWNARROW;
-        case SDLK_UP:          return KEY_UPARROW;
-        case SDLK_ESCAPE:      return KEY_ESCAPE;
-        case SDLK_RETURN:      return KEY_ENTER;
-        case SDLK_TAB:         return KEY_TAB;
-        case SDLK_F1:          return KEY_F1;
-        case SDLK_F2:          return KEY_F2;
-        case SDLK_F3:          return KEY_F3;
-        case SDLK_F4:          return KEY_F4;
-        case SDLK_F5:          return KEY_F5;
-        case SDLK_F6:          return KEY_F6;
-        case SDLK_F7:          return KEY_F7;
-        case SDLK_F8:          return KEY_F8;
-        case SDLK_F9:          return KEY_F9;
-        case SDLK_F10:         return KEY_F10;
-        case SDLK_F11:         return KEY_F11;
-        case SDLK_F12:         return KEY_F12;
+        case SDL_SCANCODE_LCTRL:
+        case SDL_SCANCODE_RCTRL:
+            return KEY_RCTRL;
 
-        case SDLK_BACKSPACE:   return KEY_BACKSPACE;
-        case SDLK_DELETE:      return KEY_DEL;
+        case SDL_SCANCODE_LSHIFT:
+        case SDL_SCANCODE_RSHIFT:
+            return KEY_RSHIFT;
 
-        case SDLK_PAUSE:       return KEY_PAUSE;
+        case SDL_SCANCODE_LALT:
+            return KEY_LALT;
 
-#if !SDL_VERSION_ATLEAST(1, 3, 0)
-        case SDLK_EQUALS:      return KEY_EQUALS;
-#endif
+        case SDL_SCANCODE_RALT:
+            return KEY_RALT;
 
-        case SDLK_LSHIFT:
-        case SDLK_RSHIFT:
-                               return KEY_RSHIFT;
-
-        case SDLK_LCTRL:
-        case SDLK_RCTRL:
-                               return KEY_RCTRL;
-
-        case SDLK_LALT:
-        case SDLK_RALT:
-#if !SDL_VERSION_ATLEAST(1, 3, 0)
-        case SDLK_LMETA:
-        case SDLK_RMETA:
-#endif
-                               return KEY_RALT;
-
-        case SDLK_CAPSLOCK:    return KEY_CAPSLOCK;
-        case SDLK_SCROLLOCK:   return KEY_SCRLCK;
-
-        case SDLK_KP0:         return KEYP_0;
-        case SDLK_KP1:         return KEYP_1;
-        case SDLK_KP2:         return KEYP_2;
-        case SDLK_KP3:         return KEYP_3;
-        case SDLK_KP4:         return KEYP_4;
-        case SDLK_KP5:         return KEYP_5;
-        case SDLK_KP6:         return KEYP_6;
-        case SDLK_KP7:         return KEYP_7;
-        case SDLK_KP8:         return KEYP_8;
-        case SDLK_KP9:         return KEYP_9;
-
-        case SDLK_KP_PERIOD:   return KEYP_PERIOD;
-        case SDLK_KP_MULTIPLY: return KEYP_MULTIPLY;
-        case SDLK_KP_PLUS:     return KEYP_PLUS;
-        case SDLK_KP_MINUS:    return KEYP_MINUS;
-        case SDLK_KP_DIVIDE:   return KEYP_DIVIDE;
-        case SDLK_KP_EQUALS:   return KEYP_EQUALS;
-        case SDLK_KP_ENTER:    return KEYP_ENTER;
-
-        case SDLK_HOME:        return KEY_HOME;
-        case SDLK_INSERT:      return KEY_INS;
-        case SDLK_END:         return KEY_END;
-        case SDLK_PAGEUP:      return KEY_PGUP;
-        case SDLK_PAGEDOWN:    return KEY_PGDN;
-
-#ifdef SDL_HAVE_APP_KEYS
-        case SDLK_APP1:        return KEY_F1;
-        case SDLK_APP2:        return KEY_F2;
-        case SDLK_APP3:        return KEY_F3;
-        case SDLK_APP4:        return KEY_F4;
-        case SDLK_APP5:        return KEY_F5;
-        case SDLK_APP6:        return KEY_F6;
-#endif
-
-        default:               break;
+        default:
+            if (scancode < arrlen(scancode_translate_table))
+            {
+                return scancode_translate_table[scancode];
+            }
+            else
+            {
+                return 0;
+            }
     }
+}
 
-    // Returned value is different, depending on whether key mapping is
-    // enabled.  Key mapping is preferable most of the time, for typing
-    // in text, etc.  However, when we want to read raw keyboard codes
-    // for the setup keyboard configuration dialog, we want the raw
-    // key code.
+static int TranslateKeysym(const SDL_Keysym *sym)
+{
+    int translated;
 
-    if (key_mapping)
+    // We cheat here and make use of TranslateScancode. The range of keys
+    // associated with printable characters is pretty contiguous, so if it's
+    // inside that range we want the localized version of the key instead.
+    translated = TranslateScancode(sym->scancode);
+
+    if (translated >= 0x20 && translated < 0x7f)
     {
-        return sym->unicode;
+        return sym->sym;
     }
     else
     {
-        return tolower(sym->sym);
+        return translated;
     }
 }
 
@@ -444,7 +569,39 @@ static int SDLButtonToTXTButton(int button)
         case SDL_BUTTON_MIDDLE:
             return TXT_MOUSE_MIDDLE;
         default:
-            return TXT_MOUSE_BASE + button - 1;
+            return TXT_MOUSE_BASE + button + 1;
+    }
+}
+
+// Convert an SDL wheel motion to a textscreen button index.
+
+static int SDLWheelToTXTButton(const SDL_MouseWheelEvent *wheel)
+{
+    if (wheel->y <= 0)
+    {
+        return TXT_MOUSE_SCROLLDOWN;
+    }
+    else
+    {
+        return TXT_MOUSE_SCROLLUP;
+    }
+}
+
+static int MouseHasMoved(void)
+{
+    static int last_x = 0, last_y = 0;
+    int x, y;
+
+    TXT_GetMousePosition(&x, &y);
+
+    if (x != last_x || y != last_y)
+    {
+        last_x = x; last_y = y;
+        return 1;
+    }
+    else
+    {
+        return 0;
     }
 }
 
@@ -476,12 +633,50 @@ signed int TXT_GetChar(void)
                 }
                 break;
 
+            case SDL_MOUSEWHEEL:
+                return SDLWheelToTXTButton(&ev.wheel);
+
             case SDL_KEYDOWN:
-                return TranslateKey(&ev.key.keysym);
+                switch (input_mode)
+                {
+                    case TXT_INPUT_RAW:
+                        return TranslateScancode(ev.key.keysym.scancode);
+                    case TXT_INPUT_NORMAL:
+                        return TranslateKeysym(&ev.key.keysym);
+                    case TXT_INPUT_TEXT:
+                        // We ignore key inputs in this mode, except for a
+                        // few special cases needed during text input:
+                        if (ev.key.keysym.sym == SDLK_ESCAPE
+                         || ev.key.keysym.sym == SDLK_BACKSPACE
+                         || ev.key.keysym.sym == SDLK_RETURN)
+                        {
+                            return TranslateKeysym(&ev.key.keysym);
+                        }
+                        break;
+                }
+                break;
+
+            case SDL_TEXTINPUT:
+                if (input_mode == TXT_INPUT_TEXT)
+                {
+                    // TODO: Support input of more than just the first char?
+                    const char *p = ev.text.text;
+                    int result = TXT_DecodeUTF8(&p);
+                    // 0-127 is ASCII, but we map non-ASCII Unicode chars into
+                    // a higher range to avoid conflicts with special keys.
+                    return TXT_UNICODE_TO_KEY(result);
+                }
+                break;
 
             case SDL_QUIT:
                 // Quit = escape
                 return 27;
+
+            case SDL_MOUSEMOTION:
+                if (MouseHasMoved())
+                {
+                    return 0;
+                }
 
             default:
                 break;
@@ -491,87 +686,127 @@ signed int TXT_GetChar(void)
     return -1;
 }
 
-static const char *SpecialKeyName(int key)
+int TXT_GetModifierState(txt_modifier_t mod)
 {
-    switch (key)
-    {
-        case ' ':             return "SPACE";
-        case KEY_RIGHTARROW:  return "RIGHT";
-        case KEY_LEFTARROW:   return "LEFT";
-        case KEY_UPARROW:     return "UP";
-        case KEY_DOWNARROW:   return "DOWN";
-        case KEY_ESCAPE:      return "ESC";
-        case KEY_ENTER:       return "ENTER";
-        case KEY_TAB:         return "TAB";
-        case KEY_F1:          return "F1";
-        case KEY_F2:          return "F2";
-        case KEY_F3:          return "F3";
-        case KEY_F4:          return "F4";
-        case KEY_F5:          return "F5";
-        case KEY_F6:          return "F6";
-        case KEY_F7:          return "F7";
-        case KEY_F8:          return "F8";
-        case KEY_F9:          return "F9";
-        case KEY_F10:         return "F10";
-        case KEY_F11:         return "F11";
-        case KEY_F12:         return "F12";
-        case KEY_BACKSPACE:   return "BKSP";
-        case KEY_PAUSE:       return "PAUSE";
-        case KEY_EQUALS:      return "EQUALS";
-        case KEY_MINUS:       return "MINUS";
-        case KEY_RSHIFT:      return "SHIFT";
-        case KEY_RCTRL:       return "CTRL";
-        case KEY_RALT:        return "ALT";
-        case KEY_CAPSLOCK:    return "CAPS";
-        case KEY_SCRLCK:      return "SCRLCK";
-        case KEY_HOME:        return "HOME";
-        case KEY_END:         return "END";
-        case KEY_PGUP:        return "PGUP";
-        case KEY_PGDN:        return "PGDN";
-        case KEY_INS:         return "INS";
-        case KEY_DEL:         return "DEL";
-                 /*
-        case KEYP_0:          return "PAD0";
-        case KEYP_1:          return "PAD1";
-        case KEYP_2:          return "PAD2";
-        case KEYP_3:          return "PAD3";
-        case KEYP_4:          return "PAD4";
-        case KEYP_5:          return "PAD5";
-        case KEYP_6:          return "PAD6";
-        case KEYP_7:          return "PAD7";
-        case KEYP_8:          return "PAD8";
-        case KEYP_9:          return "PAD9";
-        case KEYP_UPARROW:    return "PAD_U";
-        case KEYP_DOWNARROW:  return "PAD_D";
-        case KEYP_LEFTARROW:  return "PAD_L";
-        case KEYP_RIGHTARROW: return "PAD_R";
-        case KEYP_MULTIPLY:   return "PAD*";
-        case KEYP_PLUS:       return "PAD+";
-        case KEYP_MINUS:      return "PAD-";
-        case KEYP_DIVIDE:     return "PAD/";
-                   */
+    SDL_Keymod state;
 
-        default:              return NULL;
+    state = SDL_GetModState();
+
+    switch (mod)
+    {
+        case TXT_MOD_SHIFT:
+            return (state & KMOD_SHIFT) != 0;
+        case TXT_MOD_CTRL:
+            return (state & KMOD_CTRL) != 0;
+        case TXT_MOD_ALT:
+            return (state & KMOD_ALT) != 0;
+        default:
+            return 0;
     }
 }
 
-void TXT_GetKeyDescription(int key, char *buf)
+int TXT_UnicodeCharacter(unsigned int c)
+{
+    unsigned int i;
+
+    // Check the code page mapping to see if this character maps
+    // to anything.
+
+    for (i = 0; i < arrlen(code_page_to_unicode); ++i)
+    {
+        if (code_page_to_unicode[i] == c)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+// Returns true if the given UTF8 key name is printable to the screen.
+static int PrintableName(const char *s)
+{
+    const char *p;
+    unsigned int c;
+
+    p = s;
+    while (*p != '\0')
+    {
+        c = TXT_DecodeUTF8(&p);
+        if (TXT_UnicodeCharacter(c) < 0)
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+static const char *NameForKey(int key)
+{
+    const char *result;
+    int i;
+
+    // Overrides purely for aesthetical reasons, so that default
+    // window accelerator keys match those of setup.exe.
+    switch (key)
+    {
+        case KEY_ESCAPE: return "ESC";
+        case KEY_ENTER:  return "ENTER";
+        default:
+            break;
+    }
+
+    // This key presumably maps to a scan code that is listed in the
+    // translation table. Find which mapping and once we have a scancode,
+    // we can convert it into a virtual key, then a string via SDL.
+    for (i = 0; i < arrlen(scancode_translate_table); ++i)
+    {
+        if (scancode_translate_table[i] == key)
+        {
+            result = SDL_GetKeyName(SDL_GetKeyFromScancode(i));
+            if (TXT_UTF8_Strlen(result) > 6 || !PrintableName(result))
+            {
+                break;
+            }
+            return result;
+        }
+    }
+
+    // Use US English fallback names, if the localized name is too long,
+    // not found in the scancode table, or contains unprintable chars
+    // (non-extended ASCII character set):
+    for (i = 0; i < arrlen(key_names); ++i)
+    {
+        if (key_names[i].key == key)
+        {
+            return key_names[i].name;
+        }
+    }
+
+    return NULL;
+}
+
+void TXT_GetKeyDescription(int key, char *buf, size_t buf_len)
 {
     const char *keyname;
+    int i;
 
-    keyname = SpecialKeyName(key);
+    keyname = NameForKey(key);
 
     if (keyname != NULL)
     {
-        strcpy(buf, keyname);
-    }
-    else if (isprint(key))
-    {
-        sprintf(buf, "%c", toupper(key));
+        TXT_StringCopy(buf, keyname, buf_len);
+
+        // Key description should be all-uppercase to match setup.exe.
+        for (i = 0; buf[i] != '\0'; ++i)
+        {
+            buf[i] = toupper(buf[i]);
+        }
     }
     else
     {
-        sprintf(buf, "??%i", key);
+        TXT_snprintf(buf, buf_len, "??%i", key);
     }
 }
 
@@ -658,19 +893,98 @@ void TXT_Sleep(int timeout)
     }
 }
 
-void TXT_EnableKeyMapping(int enable)
+void TXT_SetInputMode(txt_input_mode_t mode)
 {
-    key_mapping = enable;
+    if (mode == TXT_INPUT_TEXT && !SDL_IsTextInputActive())
+    {
+        SDL_StartTextInput();
+    }
+    else if (SDL_IsTextInputActive() && mode != TXT_INPUT_TEXT)
+    {
+        SDL_StopTextInput();
+    }
+
+    input_mode = mode;
 }
 
-void TXT_SetWindowTitle(char *title)
+void TXT_SetWindowTitle(const char *title)
 {
-    SDL_WM_SetCaption(title, NULL);
+    SDL_SetWindowTitle(TXT_SDLWindow, title);
 }
 
 void TXT_SDL_SetEventCallback(TxtSDLEventCallbackFunc callback, void *user_data)
 {
     event_callback = callback;
     event_callback_data = user_data;
+}
+
+// Safe string functions.
+
+void TXT_StringCopy(char *dest, const char *src, size_t dest_len)
+{
+    if (dest_len < 1)
+    {
+        return;
+    }
+
+    dest[dest_len - 1] = '\0';
+    strncpy(dest, src, dest_len - 1);
+}
+
+void TXT_StringConcat(char *dest, const char *src, size_t dest_len)
+{
+    size_t offset;
+
+    offset = strlen(dest);
+    if (offset > dest_len)
+    {
+        offset = dest_len;
+    }
+
+    TXT_StringCopy(dest + offset, src, dest_len - offset);
+}
+
+// On Windows, vsnprintf() is _vsnprintf().
+#ifdef _WIN32
+#if _MSC_VER < 1400 /* not needed for Visual Studio 2008 */
+#define vsnprintf _vsnprintf
+#endif
+#endif
+
+// Safe, portable vsnprintf().
+int TXT_vsnprintf(char *buf, size_t buf_len, const char *s, va_list args)
+{
+    int result;
+
+    if (buf_len < 1)
+    {
+        return 0;
+    }
+
+    // Windows (and other OSes?) has a vsnprintf() that doesn't always
+    // append a trailing \0. So we must do it, and write into a buffer
+    // that is one byte shorter; otherwise this function is unsafe.
+    result = vsnprintf(buf, buf_len, s, args);
+
+    // If truncated, change the final char in the buffer to a \0.
+    // A negative result indicates a truncated buffer on Windows.
+    if (result < 0 || result >= buf_len)
+    {
+        buf[buf_len - 1] = '\0';
+        result = buf_len - 1;
+    }
+
+    return result;
+}
+
+// Safe, portable snprintf().
+int TXT_snprintf(char *buf, size_t buf_len, const char *s, ...)
+{
+    va_list args;
+    int result;
+    va_start(args, s);
+    result = TXT_vsnprintf(buf, buf_len, s, args);
+    va_end(args);
+    return result;
 }
 

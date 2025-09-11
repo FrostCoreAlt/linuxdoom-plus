@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -12,11 +10,6 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
 //
 
 #ifndef TXT_SEPARATOR_H
@@ -52,13 +45,21 @@ extern txt_widget_class_t txt_separator_class;
 /**
  * Create a new horizontal separator widget.
  *
- * @param label         Label to display on the separator.  If this is
- *                      set to NULL, no label is displayed.
+ * @param label         Label to display on the separator (UTF-8 format).
+ *                      If this is set to NULL, no label is displayed.
  * @return              The new separator widget.
  */
 
-txt_separator_t *TXT_NewSeparator(char *label);
+txt_separator_t *TXT_NewSeparator(const char *label);
+
+/**
+ * Change the label on a separator.
+ *
+ * @param separator     The separator.
+ * @param label         The new label (UTF-8 format).
+ */
+
+void TXT_SetSeparatorLabel(txt_separator_t *separator, const char *label);
 
 #endif /* #ifndef TXT_SEPARATOR_H */
-
 

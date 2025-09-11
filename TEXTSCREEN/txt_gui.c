@@ -1,7 +1,5 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
 //
-// Copyright(C) 2005,2006 Simon Howard
+// Copyright(C) 2005-2014 Simon Howard
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -13,11 +11,6 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-// 02111-1307, USA.
-//
 
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +18,7 @@
 #include "txt_gui.h"
 #include "txt_io.h"
 #include "txt_main.h"
+#include "txt_utf8.h"
 
 typedef struct txt_cliparea_s txt_cliparea_t;
 
@@ -127,11 +121,12 @@ void TXT_DrawShadow(int x, int y, int w, int h)
 
 void TXT_DrawWindowFrame(const char *title, int x, int y, int w, int h)
 {
+    txt_saved_colors_t colors;
     int x1, y1;
     int bx, by;
 
+    TXT_SaveColors(&colors);
     TXT_FGColor(TXT_COLOR_BRIGHT_CYAN);
-    TXT_BGColor(TXT_COLOR_BLUE, 0);
 
     for (y1=y; y1<y+h; ++y1)
     {
@@ -172,7 +167,7 @@ void TXT_DrawWindowFrame(const char *title, int x, int y, int w, int h)
             TXT_DrawString(" ");
         }
     
-        TXT_GotoXY(x + (w - strlen(title)) / 2, y + 1);
+        TXT_GotoXY(x + (w - TXT_UTF8_Strlen(title)) / 2, y + 1);
         TXT_DrawString(title);
     }
 
@@ -180,18 +175,21 @@ void TXT_DrawWindowFrame(const char *title, int x, int y, int w, int h)
 
     TXT_DrawShadow(x + 2, y + h, w, 1);
     TXT_DrawShadow(x + w, y + 1, 2, h);
+
+    TXT_RestoreColors(&colors);
 }
 
 void TXT_DrawSeparator(int x, int y, int w)
 {
+    txt_saved_colors_t colors;
     unsigned char *data;
     int x1;
     int b;
 
     data = TXT_GetScreenData();
 
+    TXT_SaveColors(&colors);
     TXT_FGColor(TXT_COLOR_BRIGHT_CYAN);
-    TXT_BGColor(TXT_COLOR_BLUE, 0);
 
     if (!VALID_Y(y))
     {
@@ -222,9 +220,13 @@ void TXT_DrawSeparator(int x, int y, int w)
 
         data += 2;
     }
+
+    TXT_RestoreColors(&colors);
 }
 
-void TXT_DrawString(const char *s)
+// Alternative to TXT_DrawString() where the argument is a "code page
+// string" - characters are in native code page format and not UTF-8.
+void TXT_DrawCodePageString(const char *s)
 {
     int x, y;
     int x1;
@@ -251,8 +253,71 @@ void TXT_DrawString(const char *s)
     TXT_GotoXY(x + strlen(s), y);
 }
 
+static void PutUnicodeChar(unsigned int c)
+{
+    int d;
+
+    // Treat control characters specially.
+    if (c == '\n' || c == '\b')
+    {
+        TXT_PutChar(c);
+        return;
+    }
+
+    // Map Unicode character into the symbol used to represent it in this
+    // code page. For unrepresentable characters, print a fallback instead.
+    // Note that we use TXT_PutSymbol() here because we just want to do a
+    // raw write into the screen buffer.
+    d = TXT_UnicodeCharacter(c);
+
+    if (d >= 0)
+    {
+        TXT_PutSymbol(d);
+    }
+    else
+    {
+        TXT_PutSymbol('\xa8');
+    }
+}
+
+void TXT_DrawString(const char *s)
+{
+    int x, y;
+    int x1;
+    const char *p;
+    unsigned int c;
+
+    TXT_GetXY(&x, &y);
+
+    if (VALID_Y(y))
+    {
+        x1 = x;
+
+        for (p = s; *p != '\0'; )
+        {
+            c = TXT_DecodeUTF8(&p);
+
+            if (c == 0)
+            {
+                break;
+            }
+
+            if (VALID_X(x1))
+            {
+                TXT_GotoXY(x1, y);
+                PutUnicodeChar(c);
+            }
+
+            x1 += 1;
+        }
+    }
+
+    TXT_GotoXY(x + TXT_UTF8_Strlen(s), y);
+}
+
 void TXT_DrawHorizScrollbar(int x, int y, int w, int cursor, int range)
 {
+    txt_saved_colors_t colors;
     int x1;
     int cursor_x;
 
@@ -261,6 +326,7 @@ void TXT_DrawHorizScrollbar(int x, int y, int w, int cursor, int range)
         return;
     }
 
+    TXT_SaveColors(&colors);
     TXT_FGColor(TXT_COLOR_BLACK);
     TXT_BGColor(TXT_COLOR_GREY, 0);
 
@@ -269,9 +335,9 @@ void TXT_DrawHorizScrollbar(int x, int y, int w, int cursor, int range)
 
     cursor_x = x + 1;
 
-    if (range > 1)
+    if (range > 0)
     {
-        cursor_x += (cursor * (w - 3)) / (range - 1);
+        cursor_x += (cursor * (w - 3)) / range;
     }
 
     if (cursor_x > x + w - 2)
@@ -295,10 +361,12 @@ void TXT_DrawHorizScrollbar(int x, int y, int w, int cursor, int range)
     }
 
     TXT_PutChar('\x1a');
+    TXT_RestoreColors(&colors);
 }
 
 void TXT_DrawVertScrollbar(int x, int y, int h, int cursor, int range)
 {
+    txt_saved_colors_t colors;
     int y1;
     int cursor_y;
 
@@ -307,6 +375,7 @@ void TXT_DrawVertScrollbar(int x, int y, int h, int cursor, int range)
         return;
     }
 
+    TXT_SaveColors(&colors);
     TXT_FGColor(TXT_COLOR_BLACK);
     TXT_BGColor(TXT_COLOR_GREY, 0);
 
@@ -320,9 +389,9 @@ void TXT_DrawVertScrollbar(int x, int y, int h, int cursor, int range)
         cursor_y = y + h - 2;
     }
 
-    if (range > 1)
+    if (range > 0)
     {
-        cursor_y += (cursor * (h - 3)) / (range - 1);
+        cursor_y += (cursor * (h - 3)) / range;
     }
 
     for (y1=y+1; y1<y+h-1; ++y1)
@@ -344,6 +413,7 @@ void TXT_DrawVertScrollbar(int x, int y, int h, int cursor, int range)
 
     TXT_GotoXY(x, y + h - 1);
     TXT_PutChar('\x19');
+    TXT_RestoreColors(&colors);
 }
 
 void TXT_InitClipArea(void)
@@ -353,8 +423,8 @@ void TXT_InitClipArea(void)
         cliparea = malloc(sizeof(txt_cliparea_t));
         cliparea->x1 = 0;
         cliparea->x2 = TXT_SCREEN_W;
-        cliparea->y1 = 1;
-        cliparea->y2 = TXT_SCREEN_H - 1;
+        cliparea->y1 = 0;
+        cliparea->y2 = TXT_SCREEN_H;
         cliparea->next = NULL;
     }
 }

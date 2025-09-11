@@ -20,6 +20,7 @@
 
 #include "doomtype.h"
 #include "i_video.h"
+#include "doomdef.h"
 
 #include "TEXTSCREEN/txt_main.h"
 #define ENDOOM_W 80
@@ -39,7 +40,11 @@ void I_Endoom(byte *endoom_data)
 
     TXT_Init();
 
-    TXT_SetWindowTitle("Thanks for trying out LinuxDoom+ v1.13!");
+    char title[64];
+    snprintf(title, sizeof(title),
+            "Thanks for trying out LinuxDoom+ v%i.%i!", 
+            EVERSION / 100, EVERSION % 100);
+    TXT_SetWindowTitle(title);
     // SDL2-TODO I_InitWindowTitle();
     // SDL2-TODO I_InitWindowIcon();
 
@@ -71,7 +76,7 @@ void I_Endoom(byte *endoom_data)
     }
 
     // Shut down text mode screen
-
+    exit(0);
     TXT_Shutdown();
 }
 
