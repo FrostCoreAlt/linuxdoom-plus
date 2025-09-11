@@ -487,9 +487,6 @@ void I_InitGraphics(void)
     window = SDL_CreateWindow("LinuxDoom+",
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                               video_w, video_h, video_flags);
-	char wintitle[64];
-	SDL_snprintf(wintitle, sizeof(wintitle), "LinuxDoom+ v%i.%i", EVERSION / 100, EVERSION % 100);
-	SDL_SetWindowTitle(window, wintitle);
     if (!window) {
         I_Error("Could not create window %dx%d: %s", video_w, video_h, SDL_GetError());
     }
@@ -518,7 +515,7 @@ void I_InitGraphics(void)
     }
     char title[64];
     snprintf(title, sizeof(title),
-            LinuxDoom+ v%i.%i",
+            "LinuxDoom+ v%i.%i",
             EVERSION / 100, EVERSION % 100);
     SDL_SetWindowTitle(window, title);
 
