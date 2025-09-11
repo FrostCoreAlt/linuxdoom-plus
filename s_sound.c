@@ -1,20 +1,48 @@
 // Emacs style mode select   -*- C++ -*- 
 //-----------------------------------------------------------------------------
 //
-// $Id:$
+// $Id: s_sound.c 75 2005-09-05 22:50:56Z fraggle $
 //
-// Copyright (C) 1993-1996 by id Software, Inc.
+// Copyright(C) 1993-1996 Id Software, Inc.
+// Copyright(C) 2005 Simon Howard
 //
-// This source is available for distribution and/or modification
-// only under the terms of the DOOM Source Code License as
-// published by id Software. All rights reserved.
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
 //
-// The source is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// FITNESS FOR A PARTICULAR PURPOSE. See the DOOM Source Code License
-// for more details.
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 //
-// $Log:$
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+// 02111-1307, USA.
+//
+// $Log$
+// Revision 1.6  2005/09/05 22:50:56  fraggle
+// Add mmus2mid code from prboom.  Use 'void *' for music handles.  Pass
+// length of data when registering music.
+//
+// Revision 1.5  2005/09/05 20:32:18  fraggle
+// Use the system-nonspecific sound code to assign the channel number used
+// by SDL.  Remove handle tagging stuff.
+//
+// Revision 1.4  2005/08/04 21:48:32  fraggle
+// Turn on compiler optimisation and warning options
+// Add SDL_mixer sound code
+//
+// Revision 1.3  2005/08/04 18:42:15  fraggle
+// Silence compiler warnings
+//
+// Revision 1.2  2005/07/23 16:44:57  fraggle
+// Update copyright to GNU GPL
+//
+// Revision 1.1.1.1  2005/07/23 16:20:29  fraggle
+// Initial import
+//
 //
 // DESCRIPTION:  none
 //
@@ -22,7 +50,7 @@
 
 
 static const char
-rcsid[] = "$Id: s_sound.c,v 1.6 1997/02/03 22:45:12 b1 Exp $";
+rcsid[] = "$Id: s_sound.c 75 2005-09-05 22:50:56Z fraggle $";
 
 
 
@@ -364,30 +392,14 @@ S_StartSoundAtVolume
   if (sfx->lumpnum < 0)
     sfx->lumpnum = I_GetSfxLumpNum(sfx);
 
-#ifndef SNDSRV
-  // cache data if necessary
-  if (!sfx->data)
-  {
-    fprintf( stderr,
-	     "S_StartSoundAtVolume: 16bit and not pre-cached - wtf?\n");
-
-    // DOS remains, 8bit handling
-    //sfx->data = (void *) W_CacheLumpNum(sfx->lumpnum, PU_MUSIC);
-    // fprintf( stderr,
-    //	     "S_StartSoundAtVolume: loading %d (lump %d) : 0x%x\n",
-    //       sfx_id, sfx->lumpnum, (int)sfx->data );
-    
-  }
-#endif
-  
   // increase the usefulness
   if (sfx->usefulness++ < 0)
     sfx->usefulness = 1;
-  
+
   // Assigns the handle to one of the channels in the
   //  mix/output buffer.
   channels[cnum].handle = I_StartSound(sfx_id,
-				       /*sfx->data,*/
+                                       cnum,
 				       volume,
 				       sep,
 				       pitch,
@@ -651,7 +663,7 @@ S_ChangeMusic
 ( int			musicnum,
   int			looping )
 {
-    musicinfo_t*	music;
+    musicinfo_t*	music = NULL;
     char		namebuf[9];
 
     if ( (musicnum <= mus_None)
@@ -873,7 +885,6 @@ S_getChannel
 
     return cnum;
 }
-
 
 
 
