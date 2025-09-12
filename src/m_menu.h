@@ -50,6 +50,8 @@ void M_Drawer (void);
 // loads the config file.
 void M_Init (void);
 
+// Quit
+void M_QuitGame (void);
 // Called by intro code to force menu up upon a keypress,
 // does nothing if menu is already up.
 void M_StartControlPanel (void);

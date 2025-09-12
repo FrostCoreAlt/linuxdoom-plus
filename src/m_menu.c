@@ -1089,12 +1089,28 @@ void M_QuitResponse(int ch)
 	    S_StartSound(NULL,quitsounds[(gametic>>2)&7]);
 	I_WaitVBL(105);
     }
-    I_Quit();
+    I_CloseWindow();
+    I_Shutdown();
     byte *endoom;
     endoom = W_CacheLumpName("ENDOOM",PU_CACHE);
     I_Endoom (endoom);
 }
+void M_QuitGame(void)
+{
+    if (!netgame)
+    {
+        if (gamemode == commercial)
+            S_StartSound(NULL, quitsounds2[(gametic >> 2) & 7]);
+        else
+            S_StartSound(NULL, quitsounds[(gametic >> 2) & 7]);
+        I_WaitVBL(105);
+    }
+    I_CloseWindow();
+    I_Shutdown();
 
+    byte *endoom = W_CacheLumpName("ENDOOM", PU_CACHE);
+    I_Endoom(endoom);
+}
 
 
 

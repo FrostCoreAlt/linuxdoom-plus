@@ -119,11 +119,15 @@ void I_Quit (void)
     D_QuitNetGame ();
     I_ShutdownSound();
     I_ShutdownMusic();
-    // M_SaveDefaults ();
+    M_SaveDefaults ();
     I_ShutdownGraphics();
-    exit(0);
 }
-
+void I_Shutdown (void)
+{
+    D_QuitNetGame ();
+    I_ShutdownSound();
+    I_ShutdownMusic();
+}
 void I_WaitVBL(int count)
 {
 #ifdef SGI

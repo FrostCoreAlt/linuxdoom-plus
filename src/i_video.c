@@ -36,7 +36,7 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
-
+#include "m_menu.h"
 #include "doomdef.h"
 
 
@@ -130,7 +130,17 @@ void I_ShutdownGraphics(void)
     /* window_surface is owned by SDL, no need to free separately */
     SDL_Quit();
 }
-
+void I_CloseWindow(void)
+{
+    if (window) {
+        SDL_DestroyWindow(window);
+        window = NULL;
+    }
+    if (screen) {
+        SDL_FreeSurface(screen);
+        screen = NULL;
+    }
+}
 
 
 //
@@ -197,8 +207,7 @@ void I_GetEvent(SDL_Event *Event)
 #endif
 
       case SDL_QUIT:
-	I_Quit();
-    	exit(0);
+	M_QuitGame();
       }
 
 }
