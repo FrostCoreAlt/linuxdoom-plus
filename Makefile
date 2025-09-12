@@ -29,7 +29,7 @@ $(TXT_LIB): $(TXT_OBJS)
 $(O)/%.o: $(SRC)/%.c | object
 	$(CC) $(CFLAGS) -c $< -o $@
 
-TEXTSCREEN/%.o: $(SRC)/TEXTSCREEN/%.c
+$(SRC)/TEXTSCREEN/%.o: $(SRC)/TEXTSCREEN/%.c
 	$(CC) $(CFLAGS) -I $(SRC)/TEXTSCREEN -c $< -o $@
 
 object:
@@ -37,7 +37,7 @@ object:
 
 clean:
 	rm -f $(O)/*.o $(O)/linuxdoom-plus
-	rm -f TEXTSCREEN/*.o TEXTSCREEN/libtextscreen.a
+	rm -f $(SRC)/TEXTSCREEN/*.o $(SRC)/TEXTSCREEN/libtextscreen.a
 	rm -f *~ TEXTSCREEN/*~
 
 .PHONY: all clean object
