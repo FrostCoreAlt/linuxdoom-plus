@@ -1,14 +1,14 @@
 # LinuxDoom+
 LinuxDoom+ is a source port based on LinuxDoom v1.10, it is aimed at vanilla compatibility while adding new features
 # Credits
-Fork of idSoftware/DOOM (linuxdoom-1.10), uses renderer and sound code by Sam Lantinga (modified and copied from SDLDoom!)
+Fork of idSoftware/DOOM (linuxdoom-1.10), uses modified code from SDLDoom to work on SDL2.
 # Compiling
 ## NOTE: This code only compiles on Linux, a Windows build is not planned for now
-You need to have nsl and sdl12-compat, you can install these in whatever linux distro you have,
+You need to have sdl2, sdl2_mixer, and sdl2_net, you can install these in whatever linux distro you have,
 
 Example: on Arch Linux
 
-```sudo pacman -S sdl12-compat libnsl sdl_mixer```
+```sudo pacman -S sdl2 sdl2_mixer sdl2_net```
 
 Then, clone the repository, and type
 
@@ -22,13 +22,9 @@ SDL Sounds
 
 Support for DOOM (registered and shareware), The Ultimate DOOM, DOOM II, DOOM II: TNT: Evilution, DOOM II: The Plutonia Experiment, Freedoom: Phase 1, Freedoom: Phase 2, DOOM II: L'Enfer sur Terre (french DOOM II, limited support)
 # Bugs
-Game crashes when trying to quit multiple times
-
-Sample rate is predefined as 11,205 Hz so some sounds that have 11,205 Hz (like the super shotgun reload) play at half speed
+None so far.
 # Screenshots
 ![DOOM II Main Menu on LinuxDoom+](scrshot.png)
 ![DOOM II Demo playing on LinuxDoom+](scrshot2.png)
 # TODO
-Fix all bugs previously mentioned.
-
-Windows port (that is up to you contributors, I have tried myself and failed)
+Windows port (finish cross platform make as compiling currently does support Windows
