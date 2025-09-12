@@ -29,6 +29,7 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 
 #include <SDL2/SDL.h>
 
+#include "icon.h"
 #include "m_swap.h"
 #include "doomstat.h"
 #include "i_system.h"
@@ -507,11 +508,14 @@ void I_InitGraphics(void)
 
     /* set window icon if available */
     {
-        SDL_Surface *icon = SDL_LoadBMP("icon.bmp");
-        if (icon) {
-            SDL_SetWindowIcon(window, icon);
-            SDL_FreeSurface(icon);
-        }
+    SDL_RWops *rw = SDL_RWFromConstMem(ico_bmp, ico_bmp_len);
+    	if (!rw) return;
+
+    	SDL_Surface *icon = SDL_LoadBMP_RW(rw, 1);
+    	if (icon) {
+    	    SDL_SetWindowIcon(window, icon);
+    	    SDL_FreeSurface(icon);
+    	}
     }
     char title[64];
     snprintf(title, sizeof(title),
