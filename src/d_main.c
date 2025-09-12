@@ -32,6 +32,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 extern int access(char *file, int mode);
 
 #define R_OK	4
@@ -552,7 +553,34 @@ void D_AddFile (char *file)
 	
     wadfiles[numwadfiles] = newfile;
 }
+// wad finder
+char *find_wad(const char *dir, const char *filename)
+{
+    char tmp[1024];
+    snprintf(tmp, sizeof(tmp), "%s/%s", dir, filename);
+    if (!access(tmp, R_OK))
+        return strdup(tmp);
 
+    // Try uppercase
+    char upper[256];
+    for (int i = 0; filename[i]; i++)
+        upper[i] = toupper((unsigned char)filename[i]);
+    upper[strlen(filename)] = '\0';
+    snprintf(tmp, sizeof(tmp), "%s/%s", dir, upper);
+    if (!access(tmp, R_OK))
+        return strdup(tmp);
+
+    // Try lowercase
+    char lower[256];
+    for (int i = 0; filename[i]; i++)
+        lower[i] = tolower((unsigned char)filename[i]);
+    lower[strlen(filename)] = '\0';
+    snprintf(tmp, sizeof(tmp), "%s/%s", dir, lower);
+    if (!access(tmp, R_OK))
+        return strdup(tmp);
+
+    return NULL; // not found
+}
 //
 // IdentifyVersion
 // Checks availability of IWAD files by name,
@@ -578,35 +606,34 @@ void IdentifyVersion (void)
 	doomwaddir = ".";
 
     // Commercial.
-    doom2wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(doom2wad, "%s/doom2.wad", doomwaddir);
+    doom2wad = find_wad(doomwaddir, "doom2.wad");
+
     
     // DOOM
-    doomwad = malloc(strlen(doomwaddir)+1+8+1);
-    sprintf(doomwad, "%s/doom.wad", doomwaddir);
+    doomwad = find_wad(doomwaddir, "doom.wad");
+
     
     // Shareware.
-    doom1wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(doom1wad, "%s/doom1.wad", doomwaddir);
+    doom1wad = find_wad(doomwaddir, "doom1.wad");
+
 
      // Bug, dear Shawn.
     // Insufficient malloc, caused spurious realloc errors.
-    plutoniawad = malloc(strlen(doomwaddir)+1+/*9*/12+1);
-    sprintf(plutoniawad, "%s/plutonia.wad", doomwaddir);
+    plutoniawad = find_wad(doomwaddir, "plutonia.wad");
 
-    tntwad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(tntwad, "%s/tnt.wad", doomwaddir);
+
+	tntwad = find_wad(doomwaddir, "tnt.wad");
+
 
 
     // French stuff.
-    doom2fwad = malloc(strlen(doomwaddir)+1+10+1);
-    sprintf(doom2fwad, "%s/doom2f.wad", doomwaddir);
+    doom2fwad = find_wad(doomwaddir, "doom2f.wad");
+
     // Freedoom Phase 1
-    freedoom1wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(freedoom1wad, "%s/freedoom1.wad", doomwaddir);
+    freedoom1wad = find_wad(doomwaddir, "freedoom1.wad");
+
     // Freedoom Phase 2
-    freedoom2wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(freedoom2wad, "%s/freedoom2.wad", doomwaddir);
+    freedoom2wad = find_wad(doomwaddir, "freedoom2.wad");
     home = getenv("HOME");
     if (!home)
       home = ".";
