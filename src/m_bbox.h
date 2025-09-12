@@ -23,7 +23,8 @@
 #ifndef __M_BBOX__
 #define __M_BBOX__
 
-#include <values.h>
+// Windows fix, we must include doomtype to fix values.h not being a windows header
+#include "doomtype.h"
 
 #include "m_fixed.h"
 
