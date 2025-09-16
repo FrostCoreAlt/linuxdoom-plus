@@ -3,8 +3,7 @@ LinuxDoom+ is a source port based on LinuxDoom v1.10, it is aimed at vanilla com
 # Credits
 Fork of idSoftware/DOOM (linuxdoom-1.10), uses modified code from SDLDoom to work on SDL2.
 # Compiling
-## NOTE: This code only compiles on Linux, a Windows build is not planned for now
-You need to have sdl2, sdl2_mixer, and sdl2_net, you can install these in whatever linux distro you have,
+You need to have sdl2, sdl2_mixer, and sdl2_net, you can install these in whatever linux distro you have, if you are using Windows, there soon will be instructions on setting up a compiling environment,
 
 Example: on Arch Linux
 
