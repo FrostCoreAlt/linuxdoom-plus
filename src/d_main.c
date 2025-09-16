@@ -894,7 +894,7 @@ void D_DoomMain (void)
       default:
 	sprintf (title,
 		 "                     "
-		 "Public DOOM - v%i.%i"
+		 "LinuxDoom+ v%i.%i"
 		 "                           ",
 		 EVERSION/100,EVERSION%100);
 	break;
