@@ -445,54 +445,39 @@ void I_UnRegisterSong(void *handle)
 
 void *I_RegisterSong(void *data, int len)
 {
-    char filename[64];
     Mix_Music *music;
     MIDI *mididata;
     UBYTE *mid;
     int midlen;
-    
-#ifdef _WIN32
-    sprintf(filename, "doom.mid");
-#else
-    sprintf(filename, "/tmp/doom-%i.mid", getpid());
-#endif
 
-    // Convert from mus to midi
-    // Bits here came from PrBoom
-  
     mididata = Z_Malloc(sizeof(MIDI), PU_STATIC, 0);
     mmus2mid(data, mididata, 89, 0);
 
     if (MIDIToMidi(mididata, &mid, &midlen))
     {
-        // Error occurred
-
         fprintf(stderr, "Error converting MUS lump.\n");
-
-        music = NULL;
-    }
-    else
-    {
-        // Write midi data to disk
-       
-        M_WriteFile(filename, mid, midlen);
-
-        // Clean up
-       
-        free(mid);
-        free_mididata(mididata);
-        music = Mix_LoadMUS(filename);
-        
-        if (music == NULL)
-        {
-            // Failed to load
-
-            fprintf(stderr, "Error loading midi\n");
-        }
+        Z_Free(mididata);
+        return NULL;
     }
 
     Z_Free(mididata);
-    
+
+    SDL_RWops *rw = SDL_RWFromConstMem(mid, midlen);
+    if (!rw) {
+        fprintf(stderr, "SDL_RWFromConstMem failed.\n");
+        free(mid);
+        return NULL;
+    }
+
+    music = Mix_LoadMUS_RW(rw, 1);  
+
+    free(mid);
+
+    if (!music) {
+        fprintf(stderr, "Mix_LoadMUS_RW failed: %s\n", Mix_GetError());
+        return NULL;
+    }
+
     return music;
 }
 
