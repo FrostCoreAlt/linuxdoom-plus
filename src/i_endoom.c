@@ -42,7 +42,7 @@ void I_Endoom(byte *endoom_data)
 
     char title[64];
     snprintf(title, sizeof(title),
-            "Thanks for trying out LinuxDoom+ v%d!", 
+            "Thanks for trying out LinuxDoom+ v%s!", 
             EVERSION);
     TXT_SetWindowTitle(title);
     // SDL2-TODO I_InitWindowTitle();
