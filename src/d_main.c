@@ -850,30 +850,30 @@ void D_DoomMain (void)
       case retail:
 	sprintf (title,
 		 "                         "
-		 "The Ultimate DOOM Startup v%i.%i"
+		 "The Ultimate DOOM Startup v%s"
 		 "                           ",
-		 EVERSION/100,EVERSION%100);
+		 EVERSION);
 	break;
       case shareware:
 	sprintf (title,
 		 "                            "
-		 "DOOM Shareware Startup v%i.%i"
+		 "DOOM Shareware Startup v%s"
 		 "                           ",
-		 EVERSION/100,EVERSION%100);
+		 EVERSION);
 	break;
       case registered:
 	sprintf (title,
 		 "                            "
-		 "DOOM Registered Startup v%i.%i"
+		 "DOOM Registered Startup v%s"
 		 "                           ",
-		 EVERSION/100,EVERSION%100);
+		 EVERSION);
 	break;
       case commercial:
 	sprintf (title,
 		 "                         "
-		 "DOOM 2: Hell on Earth v%i.%i"
+		 "DOOM 2: Hell on Earth v%s"
 		 "                           ",
-		 EVERSION/100,EVERSION%100);
+		 EVERSION);
 	break;
 /*FIXME
        case pack_plut:
@@ -894,9 +894,9 @@ void D_DoomMain (void)
       default:
 	sprintf (title,
 		 "                     "
-		 "LinuxDoom+ v%i.%i"
+		 "LinuxDoom+ v%s"
 		 "                           ",
-		 EVERSION/100,EVERSION%100);
+		 EVERSION);
 	break;
     }
     

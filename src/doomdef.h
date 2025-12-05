@@ -32,7 +32,7 @@
 // DOOM version
 enum { VERSION =  109 };
 // Engine version
-enum { EVERSION =  115 };
+#define EVERSION "1.15.1"
 
 // Game mode handling - identify IWAD version
 //  to handle IWAD dependend animations etc.
