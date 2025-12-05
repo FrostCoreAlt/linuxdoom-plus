@@ -528,8 +528,8 @@ void I_InitGraphics(void)
     }
     char title[64];
     snprintf(title, sizeof(title),
-            "LinuxDoom+ v%i.%i",
-            EVERSION / 100, EVERSION % 100);
+            "LinuxDoom+ v%s",
+            EVERSION);
     SDL_SetWindowTitle(window, title);
 
     /* Set up the screen displays */
