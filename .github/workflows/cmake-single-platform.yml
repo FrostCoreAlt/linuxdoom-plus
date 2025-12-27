@@ -32,11 +32,17 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-    - name: Zip binary
-      run: zip linuxdoom-plus-dev${{ env.branch }}-${{ env.sha_short.zip }} ${{github.workspace}}/build/linuxdoom-plus
+    - name: Set environment variables
+      run: |
+        echo "branch=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    - name: Prepare binary
+      run: zip -j linuxdoom-plus-dev-${{ env.branch }}-${{ env.sha_short }}.zip ${{github.workspace}}/build/linuxdoom-plus
       
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linuxdoom-plus-dev${{ env.branch }}-${{ env.sha_short }}
-        path: linuxdoom-plus-dev${{ env.branch }}-${{ env.sha_short }}.zip
+        name: linuxdoom-plus-dev-${{ env.branch }}-${{ env.sha_short }}
+        path: linuxdoom-plus-dev-${{ env.branch }}-${{ env.sha_short }}.zip
+        compression-level: 0 
