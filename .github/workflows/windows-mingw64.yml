@@ -1,0 +1,53 @@
+name: CMake on Windows (MinGW)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set environment variables
+      shell: bash
+      run: |
+        echo "branch=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-toolchain
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-SDL2
+          mingw-w64-x86_64-SDL2_mixer
+          mingw-w64-x86_64-SDL2_net
+          zip
+
+    - name: Configure CMake
+      shell: msys2 {0}
+      run: |
+        cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build
+      shell: msys2 {0}
+      run: |
+        cmake --build build --config ${{env.BUILD_TYPE}}
+
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linuxdoom-plus-windev64-${{ env.branch }}-${{ env.sha_short }}
+        path: build/linuxdoom-plus.exe
