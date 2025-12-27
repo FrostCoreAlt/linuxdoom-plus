@@ -22,6 +22,11 @@ target_include_directories(textscreen PUBLIC src/TEXTSCREEN)
 FILE(GLOB CSOURCES src/*.c)
 # executable
 add_executable(${FINALEXEC} ${CSOURCES})
+# release and debug defines
+target_compile_definitions(${FINALEXEC} PRIVATE 
+    $<$<CONFIG:Release>:RELEASE>
+    $<$<CONFIG:Debug>:DEBUG>
+)
 # find sdl2
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2 REQUIRED sdl2)

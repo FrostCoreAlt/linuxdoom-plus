@@ -32,8 +32,11 @@
 // DOOM version
 enum { VERSION =  109 };
 // Engine version
+#ifdef RELEASE
 #define EVERSION "1.15.1"
-
+#else
+#define EVERSION "Dev"
+#endif
 // Game mode handling - identify IWAD version
 //  to handle IWAD dependend animations etc.
 typedef enum
