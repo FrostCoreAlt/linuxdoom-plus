@@ -8,7 +8,11 @@ set(FINALEXEC linuxdoom-plus)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 # flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -DNORMALUNIX -DLINUX")
+if(WIN32)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -DNORMALUNIX")
+else()
+    set(CMAKE_C_FLAGS "$CMAKE_C_FLAGS} -g -Wall -DNORMALUNIX -DLINUX")
+endif()
 # files
 # TEXTSCREEN
 file(GLOB TXT_SOURCES "src/TEXTSCREEN/*.c")
