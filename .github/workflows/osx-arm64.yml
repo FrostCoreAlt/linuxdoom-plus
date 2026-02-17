@@ -18,26 +18,61 @@ jobs:
 
     - name: Install dependencies
       run: brew install sdl2 sdl2_mixer sdl2_net
-        
+
     - name: Configure CMake
       run: |
         cmake -B build \
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DCMAKE_OSX_ARCHITECTURES="arm64" \
           -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
           -DCMAKE_C_FLAGS="-I$(brew --prefix)/include" \
           -DCMAKE_CXX_FLAGS="-I$(brew --prefix)/include" \
           -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix)/lib"
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: cmake --build build --config ${{env.BUILD_TYPE}}
 
-    - name: Set environment variables
+    - name: Package .app Bundle
       run: |
-        echo "branch=${GITHUB_REF##*/}" >> $GITHUB_ENV
-        echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        mkdir -p dist/linuxdoom-plus.app/Contents/MacOS
+        mkdir -p dist/linuxdoom-plus.app/Contents/Frameworks
+        
+        cp build/linuxdoom-plus dist/linuxdoom-plus.app/Contents/MacOS/
+        
+        cp $(brew --prefix sdl2)/lib/libSDL2-2.0.0.dylib dist/linuxdoom-plus.app/Contents/Frameworks/
+        cp $(brew --prefix sdl2_net)/lib/libSDL2_net-2.0.0.dylib dist/linuxdoom-plus.app/Contents/Frameworks/
+        
+        TARGET_EXE="dist/linuxdoom-plus.app/Contents/MacOS/linuxdoom-plus"
+        chmod +x "$TARGET_EXE"
+        
+        install_name_tool -add_rpath "@executable_path/../Frameworks" "$TARGET_EXE" || true
+        install_name_tool -change "$(brew --prefix sdl2)/lib/libSDL2-2.0.0.dylib" "@rpath/libSDL2-2.0.0.dylib" "$TARGET_EXE"
+        install_name_tool -change "$(brew --prefix sdl2_net)/lib/libSDL2_net-2.0.0.dylib" "@rpath/libSDL2_net-2.0.0.dylib" "$TARGET_EXE"
+        
+        codesign --force -s - "$TARGET_EXE"
+        codesign --force -s - dist/linuxdoom-plus.app/Contents/Frameworks/*.dylib
+        
+        cat <<EOF > dist/linuxdoom-plus.app/Contents/Info.plist
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>linuxdoom-plus</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.linuxdoom.linuxdoom-plus</string>
+            <key>CFBundleName</key>
+            <string>LinuxDoom+</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>11.0</string>
+        </dict>
+        </plist>
+        EOF
 
-    - name: Upload artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linuxdoom-plus-dev-arm64-mac-${{ env.branch }}-${{ env.sha_short }}
-        path: ${{github.workspace}}/build/linuxdoom-plus
+        name: linuxdoom-plus-mac-arm64
+        path: dist/linuxdoom-plus.app
