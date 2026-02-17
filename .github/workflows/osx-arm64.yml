@@ -17,14 +17,10 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: brew install sdl2 sdl2_mixer sdl2_net pkg-config
-    - name: Debug pkg-config
-      run: |
-        pkg-config --cflags sdl2
-        pkg-config --cflags SDL2_net
+      run: brew install sdl2 sdl2_mixer sdl2_net
         
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH="$(brew --prefix)" && cmake --build build --target help
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
