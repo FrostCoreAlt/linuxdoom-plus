@@ -24,6 +24,7 @@ jobs:
         cmake -B build \
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 \
+          -DCMAKE_OSX_ARCHITECTURES="x86_64" \
           -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
           -DCMAKE_C_FLAGS="-I$(brew --prefix)/include" \
           -DCMAKE_CXX_FLAGS="-I$(brew --prefix)/include" \
