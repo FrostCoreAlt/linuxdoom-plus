@@ -43,11 +43,13 @@ jobs:
         mkdir -p dist/linuxdoom-plus.app/Contents/Frameworks
         cp build/linuxdoom-plus dist/linuxdoom-plus.app/Contents/MacOS/
         cp $(brew --prefix sdl2)/lib/libSDL2-2.0.0.dylib dist/linuxdoom-plus.app/Contents/Frameworks/
+        cp $(brew --prefix sdl2_mixer)/lib/libSDL2_mixer-2.0.0.dylib dist/linuxdoom-plus.app/Contents/Frameworks/
         cp $(brew --prefix sdl2_net)/lib/libSDL2_net-2.0.0.dylib dist/linuxdoom-plus.app/Contents/Frameworks/
         TARGET_EXE="dist/linuxdoom-plus.app/Contents/MacOS/linuxdoom-plus"
         chmod +x "$TARGET_EXE"
         install_name_tool -add_rpath "@executable_path/../Frameworks" "$TARGET_EXE" || true
         install_name_tool -change "$(brew --prefix sdl2)/lib/libSDL2-2.0.0.dylib" "@rpath/libSDL2-2.0.0.dylib" "$TARGET_EXE"
+        install_name_tool -change "$(brew --prefix sdl2_mixer)/lib/libSDL2_mixer-2.0.0.dylib" "@rpath/libSDL2_mixer-2.0.0.dylib" "$TARGET_EXE"
         install_name_tool -change "$(brew --prefix sdl2_net)/lib/libSDL2_net-2.0.0.dylib" "@rpath/libSDL2_net-2.0.0.dylib" "$TARGET_EXE"
         codesign --force -s - "$TARGET_EXE"
         codesign --force -s - dist/linuxdoom-plus.app/Contents/Frameworks/*.dylib
