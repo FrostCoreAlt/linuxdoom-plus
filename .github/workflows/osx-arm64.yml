@@ -18,7 +18,6 @@ jobs:
 
     - name: Install dependencies
       run: |
-        brew update
         brew install sdl2 sdl2_mixer sdl2_net
 
     - name: Configure CMake
