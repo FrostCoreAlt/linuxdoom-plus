@@ -1,0 +1,44 @@
+name: CMake on macOS (Intel)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: brew install sdl2 sdl2_mixer sdl2_net
+        
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 \
+          -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
+          -DCMAKE_C_FLAGS="-I$(brew --prefix)/include" \
+          -DCMAKE_CXX_FLAGS="-I$(brew --prefix)/include" \
+          -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix)/lib"
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Set environment variables
+      run: |
+        echo "branch=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linuxdoom-plus-dev-arm64-${{ env.branch }}-${{ env.sha_short }}
+        path: ${{github.workspace}}/build/linuxdoom-plus
