@@ -39,29 +39,42 @@ jobs:
 
     - name: Package .app Bundle
       run: |
-        mkdir -p dist/linuxdoom-plus.app/Contents/MacOS
-        mkdir -p dist/linuxdoom-plus.app/Contents/Frameworks
-        cp build/linuxdoom-plus dist/linuxdoom-plus.app/Contents/MacOS/
-        cp $(brew --prefix sdl2)/lib/libSDL2-2.0.0.dylib dist/linuxdoom-plus.app/Contents/Frameworks/
-        cp $(brew --prefix sdl2_mixer)/lib/libSDL2_mixer-2.0.0.dylib dist/linuxdoom-plus.app/Contents/Frameworks/
-        cp $(brew --prefix sdl2_net)/lib/libSDL2_net-2.0.0.dylib dist/linuxdoom-plus.app/Contents/Frameworks/
-        TARGET_EXE="dist/linuxdoom-plus.app/Contents/MacOS/linuxdoom-plus"
+        APP_NAME="linuxdoom-plus.app"
+        FRAMEWORKS_DIR="dist/$APP_NAME/Contents/Frameworks"
+        MACOS_DIR="dist/$APP_NAME/Contents/MacOS"
+        
+        mkdir -p "$MACOS_DIR"
+        mkdir -p "$FRAMEWORKS_DIR"
+        
+        cp build/linuxdoom-plus "$MACOS_DIR/"
+        
+        cp $(brew --prefix sdl2)/lib/libSDL2-2.0.0.dylib "$FRAMEWORKS_DIR/"
+        cp $(brew --prefix sdl2_mixer)/lib/libSDL2_mixer-2.0.0.dylib "$FRAMEWORKS_DIR/"
+        cp $(brew --prefix sdl2_net)/lib/libSDL2_net-2.0.0.dylib "$FRAMEWORKS_DIR/"
+        
+        TARGET_EXE="$MACOS_DIR/linuxdoom-plus"
         chmod +x "$TARGET_EXE"
+        
+        install_name_tool -add_rpath "@executable_path/../Frameworks" "$TARGET_EXE" || true
+        
         for i in {1..3}; do
-          for file in dist/$APP_NAME/Contents/Frameworks/*.dylib "$TARGET_EXE"; do
-            otool -L "$file" | grep "/usr/local" | awk '{print $1}' | while read lib; do
+          for file in "$FRAMEWORKS_DIR"/*.dylib "$TARGET_EXE"; do
+            [ -e "$file" ] || continue
+            otool -L "$file" | grep "/opt/homebrew" | awk '{print $1}' | while read lib; do
               libname=$(basename "$lib")
-              if [ ! -f "dist/$APP_NAME/Contents/Frameworks/$libname" ]; then
-                cp "$lib" "dist/$APP_NAME/Contents/Frameworks/"
-                chmod 755 "dist/$APP_NAME/Contents/Frameworks/$libname"
+              if [ ! -f "$FRAMEWORKS_DIR/$libname" ]; then
+                cp "$lib" "$FRAMEWORKS_DIR/"
+                chmod 755 "$FRAMEWORKS_DIR/$libname"
               fi
               install_name_tool -change "$lib" "@rpath/$libname" "$file"
             done
           done
         done
+
         codesign --force -s - "$TARGET_EXE"
-        codesign --force -s - dist/linuxdoom-plus.app/Contents/Frameworks/*.dylib
-        cat <<EOF > dist/linuxdoom-plus.app/Contents/Info.plist
+        codesign --force -s - "$FRAMEWORKS_DIR"/*.dylib
+        
+        cat <<EOF > dist/$APP_NAME/Contents/Info.plist
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
